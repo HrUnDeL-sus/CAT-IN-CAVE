@@ -147,7 +147,7 @@ function love.load()
      cam = camera.new(0,0,2000,2000)
 	 cam:setWorld(0,0,2000,2000)
 	 	
-	 client = sock.newClient("localhost", 22123)
+	 client = sock.newClient("88.85.171.249", 22123)
 	 init_client_requests()
 	  client:setMessageTimeout(2)
 
