@@ -1,7 +1,17 @@
 require "enet"
 local sock = require "sock"
 all_players_in_scene={}
-
+all_build_in_scene={}
+function create_build(lx,ly,player_uid,ltype)
+return {
+x=lx,
+y=ly,
+uid_player=player_uid,
+uid=random_string(12),
+lvl=1,
+type=ltype 
+}
+end
 function create_player(lname,client_id,lx,ly)
 return {
 name=lname,
@@ -12,6 +22,9 @@ connect_id_client=client_id,
 current_animation="",
 is_mirror=false
 }
+end
+function add_build_in_scene(build)
+table.insert(all_build_in_scene,build)
 end
 function add_player_in_scene(obj)
 table.insert(all_players_in_scene,obj)
@@ -34,20 +47,26 @@ function love.load()
 	
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
-	server:setMessageTimeout(1)
+	
 	server:on("get_player_server", function (player,client)
 	all_players_in_scene[find_player_by_id(client:getConnectId())]=convert_cliet_player_to_server_player(all_players_in_scene[find_player_by_id(client:getConnectId())],player)
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 		
 	end)
+	
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
-		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(0,200),0)
+		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(0,200),60)
 		add_player_in_scene(new_player)
 		client:send("get_player",convert_server_player_to_client_player(new_player))
 	--	add_object_in_scene()
 		
+end)
+server:on("create_build", function(ltype,lclient)
+
+lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
+add_build_in_scene(create_build(lplayer.x,lplayer.y,lplayer.uid,ltype))
 end)
 
 end
@@ -84,5 +103,6 @@ function love.update(dt)
 
     server:update()
 	send_all_players()
+	server:sendToAll("builds",all_build_in_scene)
 
 end

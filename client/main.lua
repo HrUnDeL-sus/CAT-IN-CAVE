@@ -3,6 +3,9 @@ local camera = require "gamera"
 my_player={x=0}
 player_animator={}
 all_players={}
+all_builds={}
+all_sprites_build={}
+
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -71,23 +74,38 @@ is_mirror=lis_mirror
 }
 
 end
+function init_build_sprites()
+main_sprite_build=love.graphics.newImage("builds.png")
+main_sprite_build:setFilter("linear", "nearest")
+for i=1,5,1 do
+all_sprites_build["home"..i]=love.graphics.newQuad(32*i-1,0,32,32,main_sprite_build)
+end
+for i=1,5,1 do
+all_sprites_build["fortress"..i]=love.graphics.newQuad(32*i-1,32,32,32,main_sprite_build)
+end
+for i=1,5,1 do
+all_sprites_build["wall"..i]=love.graphics.newQuad(32*i-1,32*3,32,32,main_sprite_build)
+end
+for i=1,5,1 do
+all_sprites_build["tower"..i]=love.graphics.newQuad(32*i-1,32*4,32,32,main_sprite_build)
+end
+for i=1,5,1 do
+all_sprites_build["shop"..i]=love.graphics.newQuad(32*i-1,32*5,32,32,main_sprite_build)
+end
+all_sprites_build["negotiation_house1"]=love.graphics.newQuad(0,32*2,32,32,main_sprite_build)
+end
 function init_cat_animator(cat)
 			  add_animation(cat.animator,"stand",2,500)
 			   add_animation(cat.animator,"run",2,20)
 set_animation(cat.animator,"stand")
 
 end
-function love.load()
-
-	cat_image = love.graphics.newImage("cat.png")
-	cat_image:setFilter("linear", "nearest")
-	
-	platform_image=love.graphics.newImage("platform.png")
-	 background_image=love.graphics.newImage("bg.jpg")
-     cam = camera.new(0,0,2000,2000)
-	 cam:setWorld(0,0,2000,2000)
-	 client = sock.newClient("localhost", 22123)
+function init_client_requests()
+  client:on("builds",function(lbuilds)
+	  all_builds=lbuilds
+	  end)
 	 client:on("players",function(lplayers)
+	
 	 for i=1,#lplayers,1 do
 	 if(all_players[i]==nil) then
 	 all_players[i]=new_player(lplayers[i].x,lplayers[i].y,lplayers[i].name,new_animator(cat_image,16,16),false)
@@ -117,12 +135,29 @@ end
 			  end
 			  my_player=player	
 end)
+
+end
+function love.load()
+
+	cat_image = love.graphics.newImage("cat.png")
+	cat_image:setFilter("linear", "nearest")
+	init_build_sprites()
+	platform_image=love.graphics.newImage("platform.png")
+	 background_image=love.graphics.newImage("bg.jpg")
+     cam = camera.new(0,0,2000,2000)
+	 cam:setWorld(0,0,2000,2000)
+	 	
+	 client = sock.newClient("localhost", 22123)
+	 init_client_requests()
+	  client:setMessageTimeout(2)
+
 	  client:connect()
 
 end
 function love.quit()
 
 end
+
 function key_is_press()
 if(my_player.animator~=nil) then
   set_animation(my_player.animator,"run")
@@ -135,8 +170,37 @@ if(my_player.animator~=nil) then
    else
    set_animation(my_player.animator,"stand")
    end
+
+   
     client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
 	end
+end
+function love.keypressed( key )
+   if key == "1" then
+    client:send("create_build","home1",client)
+   end
+      if key == "2" then
+    client:send("create_build","fortress1",client)
+   end
+      if key == "3" then
+    client:send("create_build","wall1",client)
+   end
+      if key == "4" then
+    client:send("create_build","tower1",client)
+   end
+      if key == "5" then
+    client:send("create_build","shop1",client)
+   end
+      if key == "6" then
+    client:send("create_build","negotiation_house1",client)
+   end
+end
+function draw_builds()
+for i=1,#all_builds,1 do
+
+love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type],all_builds[i].x,all_builds[i].y,0,4,4)
+end
+
 end
 function love.draw()
 
@@ -147,6 +211,7 @@ cam:setPosition(my_player.x, 0)
   love.graphics.draw(platform_image,-100 ,500,0,1.5,1.5)
 
 cam:draw(function(l,t,w,h)
+draw_builds()
 if(all_players~=nil)then
   for i=1,#all_players,1 do
   if all_players[i].is_mirror==true then
