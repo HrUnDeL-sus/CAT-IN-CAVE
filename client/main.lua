@@ -149,7 +149,6 @@ function love.load()
 	 	
 	 client = sock.newClient("88.85.171.249", 22123)
 	 init_client_requests()
-	  client:setMessageTimeout(2)
 
 	  client:connect()
 
@@ -164,16 +163,17 @@ if(my_player.animator~=nil) then
    if love.keyboard.isDown("d") then
      my_player.x=my_player.x+1
 	 my_player.is_mirror=false
+	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
   elseif love.keyboard.isDown("a") then
      my_player.x=my_player.x-1
 	 my_player.is_mirror=true
-   else
+	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+   elseif(my_player.animator.name_main_anim=="run") then
    set_animation(my_player.animator,"stand")
+   client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+   else
    end
-
-   
-    client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
-	end
+   end
 end
 function love.keypressed( key )
    if key == "1" then
