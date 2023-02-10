@@ -205,16 +205,15 @@ end
 function love.draw()
 
 cam:setPosition(my_player.x, 0)
-
-
- love.graphics.draw(background_image,0,0)
-  love.graphics.draw(platform_image,-100 ,500,0,1.5,1.5)
+            love.graphics.draw(background_image,0,0,0,love.graphics.getWidth()/background_image:getWidth(), love.graphics.getHeight()/background_image:getHeight())
+  love.graphics.draw(platform_image,0, love.graphics.getHeight()-50,0,love.graphics.getWidth()/platform_image:getWidth(), love.graphics.getHeight()/platform_image:getHeight()/10)
 
 cam:draw(function(l,t,w,h)
 draw_builds()
 if(all_players~=nil)then
   for i=1,#all_players,1 do
   if all_players[i].is_mirror==true then
+ 
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
    else 
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,4,4)
@@ -227,6 +226,9 @@ end)
 end
 
 function love.update(dt)
+   if dt < 1/120 then
+      love.timer.sleep(1/120 - dt)
+   end
 client:update()
 key_is_press()
 end

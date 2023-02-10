@@ -43,6 +43,15 @@ return i
 end
 end
 end
+function can_place_build_in_position(lx)
+for i=1,#all_build_in_scene,1 do
+if math.abs(all_build_in_scene[i].x-lx)<100 then
+return false
+end
+end
+return true
+end
+
 function love.load()
 	
     -- Creating a server on any IP, port 22122
@@ -57,7 +66,7 @@ function love.load()
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
-		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(0,200),60)
+		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(0,200),500)
 		add_player_in_scene(new_player)
 		client:send("get_player",convert_server_player_to_client_player(new_player))
 	--	add_object_in_scene()
@@ -66,7 +75,10 @@ end)
 server:on("create_build", function(ltype,lclient)
 
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-add_build_in_scene(create_build(lplayer.x,lplayer.y,lplayer.uid,ltype))
+if(can_place_build_in_position(lplayer.x)) then
+add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
+end
+
 end)
 
 end
