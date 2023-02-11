@@ -5,7 +5,9 @@ player_animator={}
 all_players={}
 all_builds={}
 all_sprites_build={}
-
+chat_is_active=false
+text_for_chat=""
+all_msg_in_chat={}
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -101,6 +103,13 @@ set_animation(cat.animator,"stand")
 
 end
 function init_client_requests()
+client:on("get_message",function(msg)
+table.insert(all_msg_in_chat,msg)
+if(#all_msg_in_chat>10) then
+table.remove(all_msg_in_chat,1)
+end
+
+end)
   client:on("builds",function(lbuilds)
 	  all_builds=lbuilds
 	  end)
@@ -144,8 +153,8 @@ function love.load()
 	init_build_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
-     cam = camera.new(0,0,2000,2000)
-	 cam:setWorld(0,0,2000,2000)
+     cam = camera.new(0,0,20000,720)
+	 cam:setWorld(0,0,20000,720)
 	 	
 	 client = sock.newClient("88.85.171.249", 22123)
 	 init_client_requests()
@@ -158,6 +167,7 @@ function love.quit()
 end
 
 function key_is_press()
+if chat_is_active==false then
 if(my_player.animator~=nil) then
   set_animation(my_player.animator,"run")
    if love.keyboard.isDown("d") then
@@ -175,7 +185,27 @@ if(my_player.animator~=nil) then
    end
    end
 end
+end
 function love.keypressed( key )
+ if key=="tab" then
+   if chat_is_active==true then
+   chat_is_active=false
+   else
+   chat_is_active=true
+   end
+end
+if chat_is_active==true then
+if key=="space" then
+text_for_chat=text_for_chat .. " "
+elseif key=="return" then
+client:send("send_msg",text_for_chat)
+text_for_chat=""
+elseif key=="backspace" then
+text_for_chat=string.sub(text_for_chat,1,string.len(text_for_chat)-1)
+elseif string.len(key)<2 then
+text_for_chat=text_for_chat .. key
+end
+else
    if key == "1" then
     client:send("create_build","home1",client)
    end
@@ -194,6 +224,8 @@ function love.keypressed( key )
       if key == "6" then
     client:send("create_build","negotiation_house1",client)
    end
+
+   end
 end
 function draw_builds()
 for i=1,#all_builds,1 do
@@ -205,20 +237,30 @@ end
 function love.draw()
 
 cam:setPosition(my_player.x, 0)
-            love.graphics.draw(background_image,0,0,0,love.graphics.getWidth()/background_image:getWidth(), love.graphics.getHeight()/background_image:getHeight())
+			 for i = 0, 1000 do
+            love.graphics.draw(background_image, (i* background_image:getWidth())-my_player.x,0,0,1,love.graphics.getHeight() / background_image:getHeight())
+    end
   love.graphics.draw(platform_image,0, love.graphics.getHeight()-50,0,love.graphics.getWidth()/platform_image:getWidth(), love.graphics.getHeight()/platform_image:getHeight()/10)
-
+for i=1,#all_msg_in_chat,1 do
+ love.graphics.print(all_msg_in_chat[i],0,(i-1)*20)
+end
 cam:draw(function(l,t,w,h)
 draw_builds()
 if(all_players~=nil)then
   for i=1,#all_players,1 do
+   love.graphics.print("UID:" .. all_players[i].name,all_players[i].x,all_players[i].y-20)
+   if(all_players[i].name==my_player.name) then
+    love.graphics.print("Send:" .. text_for_chat,all_players[i].x,all_players[i].y-50)
+	 love.graphics.print("X:" .. all_players[i].x,all_players[i].x,all_players[i].y-100)
+	  love.graphics.print("State:" .. client:getState(),all_players[i].x,all_players[i].y-150)
+	end
   if all_players[i].is_mirror==true then
  
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
    else 
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,4,4)
    end
-   love.graphics.print("Count " .. all_players[i].x,50+100*i,100)
+  
   end
  end
 end)

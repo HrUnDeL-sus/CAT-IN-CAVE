@@ -56,17 +56,24 @@ function love.load()
 	
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
-	
+	server:on("send_msg",function(msg,client)
+	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
+	end)
 	server:on("get_player_server", function (player,client)
 	all_players_in_scene[find_player_by_id(client:getConnectId())]=convert_cliet_player_to_server_player(all_players_in_scene[find_player_by_id(client:getConnectId())],player)
+	if(all_players_in_scene[find_player_by_id(client:getConnectId())].x<500) then
+	all_players_in_scene[find_player_by_id(client:getConnectId())].x=500
+	end
+	if (all_players_in_scene[find_player_by_id(client:getConnectId())].x>9000) then
+	all_players_in_scene[find_player_by_id(client:getConnectId())].x=9000
+	end
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
-		
 	end)
 	
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
-		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(0,200),500)
+		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(500,2000),500)
 		add_player_in_scene(new_player)
 		client:send("get_player",convert_server_player_to_client_player(new_player))
 	--	add_object_in_scene()
@@ -112,7 +119,7 @@ end
 end
 
 function love.update(dt)
-
+	love.timer.sleep(0.001)
     server:update()
 	send_all_players()
 	server:sendToAll("builds",all_build_in_scene)
