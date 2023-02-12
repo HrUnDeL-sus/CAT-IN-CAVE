@@ -2,6 +2,7 @@ require "enet"
 local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
+tick=0
 function create_build(lx,ly,player_uid,ltype)
 return {
 x=lx,
@@ -55,18 +56,23 @@ end
 function love.load()
 	
     -- Creating a server on any IP, port 22122
-    server = sock.newServer("*", 22123)
+    server = sock.newServer("*", 22123,64,1,1000,1000)
+
+		print("MODE:" .. server:getMaxChannels())
 	server:on("send_msg",function(msg,client)
+		
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
 	end)
 	server:on("get_player_server", function (player,client)
 	all_players_in_scene[find_player_by_id(client:getConnectId())]=convert_cliet_player_to_server_player(all_players_in_scene[find_player_by_id(client:getConnectId())],player)
+		
 	if(all_players_in_scene[find_player_by_id(client:getConnectId())].x<500) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=500
 	end
 	if (all_players_in_scene[find_player_by_id(client:getConnectId())].x>9000) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=9000
 	end
+	send_all_players()
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
 	
@@ -76,6 +82,8 @@ function love.load()
 		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(500,2000),500)
 		add_player_in_scene(new_player)
 		client:send("get_player",convert_server_player_to_client_player(new_player))
+		client:send("builds",all_build_in_scene)
+		send_all_players()
 	--	add_object_in_scene()
 		
 end)
@@ -84,6 +92,7 @@ server:on("create_build", function(ltype,lclient)
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
 if(can_place_build_in_position(lplayer.x)) then
 add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
+server:sendToAll("builds",all_build_in_scene)
 end
 
 end)
@@ -108,6 +117,7 @@ is_mirror=player.is_mirror
 
 end
 function send_all_players()
+
 if all_players_in_scene~=nil then 
 players_send={}
 for i=1,#all_players_in_scene,1 do
@@ -117,11 +127,15 @@ end
 server:sendToAll("players",players_send)
 end
 end
+function local_update_server()
+server:update()
 
+end
 function love.update(dt)
-	love.timer.sleep(0.001)
-    server:update()
-	send_all_players()
-	server:sendToAll("builds",all_build_in_scene)
 
+	if pcall(local_update_server) then
+		
+else
+	print("Failure")
+end
 end

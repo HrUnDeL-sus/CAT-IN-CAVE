@@ -8,6 +8,7 @@ all_sprites_build={}
 chat_is_active=false
 text_for_chat=""
 all_msg_in_chat={}
+tick=0
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -165,19 +166,28 @@ end
 function love.quit()
 
 end
+function move_cat(is_left)
 
+if(is_left==false) then
+ my_player.x=my_player.x+1
+	 my_player.is_mirror=false
+else
+ my_player.x=my_player.x-1
+	 my_player.is_mirror=true
+
+end
+	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+
+
+end
 function key_is_press()
 if chat_is_active==false then
 if(my_player.animator~=nil) then
   set_animation(my_player.animator,"run")
    if love.keyboard.isDown("d") then
-     my_player.x=my_player.x+1
-	 my_player.is_mirror=false
-	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+    move_cat(false)
   elseif love.keyboard.isDown("a") then
-     my_player.x=my_player.x-1
-	 my_player.is_mirror=true
-	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+    move_cat(true)
    elseif(my_player.animator.name_main_anim=="run") then
    set_animation(my_player.animator,"stand")
    client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
@@ -235,7 +245,7 @@ end
 
 end
 function love.draw()
-
+key_is_press()
 cam:setPosition(my_player.x, 0)
 			 for i = 0, 1000 do
             love.graphics.draw(background_image, (i* background_image:getWidth())-my_player.x,0,0,1,love.graphics.getHeight() / background_image:getHeight())
@@ -268,9 +278,7 @@ end)
 end
 
 function love.update(dt)
-   if dt < 1/120 then
-      love.timer.sleep(1/120 - dt)
-   end
+tick=tick+dt
 client:update()
-key_is_press()
+
 end
