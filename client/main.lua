@@ -100,8 +100,47 @@ end
 function init_cat_animator(cat)
 			  add_animation(cat.animator,"stand",2,500)
 			   add_animation(cat.animator,"run",2,20)
-set_animation(cat.animator,"stand")
+			   
+end
+function select_current_cat_animation_from_server(cat,anim)
 
+ if(anim=="") then
+	  set_animation(cat.animator,"stand")
+	  else 
+	 set_animation(cat.animator,anim)
+end
+
+end
+function add_player_in_players(player)
+lplayer=nil
+id=find_id_player_in_players(player)
+if(id==-1) then
+	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false)
+
+table.insert(all_players,lplayer)
+
+init_cat_animator(all_players[#all_players])
+select_current_cat_animation_from_server(all_players[#all_players],player.current_animation)
+
+else
+
+all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror)
+
+select_current_cat_animation_from_server(all_players[id],player.current_animation)
+end
+end
+function find_id_player_in_players(player)
+if(all_players==nil) then
+return -1
+end
+
+for i=1, #all_players,1 do
+if(all_players[i].name==player.name) then
+return i
+end
+
+end
+return -1
 end
 function init_client_requests()
 client:on("get_message",function(msg)
@@ -114,36 +153,19 @@ end)
   client:on("builds",function(lbuilds)
 	  all_builds=lbuilds
 	  end)
-	 client:on("players",function(lplayers)
-	
-	 for i=1,#lplayers,1 do
-	 if(all_players[i]==nil) then
-	 all_players[i]=new_player(lplayers[i].x,lplayers[i].y,lplayers[i].name,new_animator(cat_image,16,16),false)
-	 
-	 init_cat_animator(all_players[i])
-	 else
-	 all_players[i]=new_player(lplayers[i].x,lplayers[i].y,lplayers[i].name,all_players[i].animator,lplayers[i].is_mirror)
-
-	 if(lplayers[i].current_animation=="") then
-	  set_animation(all_players[i].animator,"stand")
-	  else 
-	 set_animation(all_players[i].animator,lplayers[i].current_animation)
-end
-
-	 end
-	 if(all_players[i].name==my_player.name) then
-	 my_player=all_players[i]
-	 end
-	 end
+	 client:on("update_player",function(lplayer)
+	 add_player_in_players(lplayer)
 	 end)
 	 	      client:on("get_player", function (player)
 			  if(my_player.animator~=nil) then
 			  my_player=new_player(player.x,player.y,player.name,my_player.animator)
 			  else
+			  print("THAT")
 			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
 			  init_cat_animator(my_player)
+			  select_current_cat_animation_from_server(my_player,player.current_animation)
 			  end
-			  my_player=player	
+			 
 end)
 
 end
@@ -181,6 +203,7 @@ end
 
 end
 function key_is_press()
+
 if chat_is_active==false then
 if(my_player.animator~=nil) then
   set_animation(my_player.animator,"run")
@@ -280,5 +303,5 @@ end
 function love.update(dt)
 tick=tick+dt
 client:update()
-
+print("SENT PACKETS:" .. client:getTotalSentPackets())
 end

@@ -56,9 +56,9 @@ end
 function love.load()
 	
     -- Creating a server on any IP, port 22122
-    server = sock.newServer("*", 22123,64,1,1000,1000)
+    server = sock.newServer("*", 22123)
 
-		print("MODE:" .. server:getMaxChannels())
+		
 	server:on("send_msg",function(msg,client)
 		
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
@@ -72,7 +72,7 @@ function love.load()
 	if (all_players_in_scene[find_player_by_id(client:getConnectId())].x>9000) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=9000
 	end
-	send_all_players()
+	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
 	
@@ -83,7 +83,7 @@ function love.load()
 		add_player_in_scene(new_player)
 		client:send("get_player",convert_server_player_to_client_player(new_player))
 		client:send("builds",all_build_in_scene)
-		send_all_players()
+		send_player(new_player)
 	--	add_object_in_scene()
 		
 end)
@@ -116,16 +116,9 @@ is_mirror=player.is_mirror
 }
 
 end
-function send_all_players()
+function send_player(player)
+server:sendToAll("update_player",convert_server_player_to_client_player(player))
 
-if all_players_in_scene~=nil then 
-players_send={}
-for i=1,#all_players_in_scene,1 do
-table.insert(players_send,convert_server_player_to_client_player(all_players_in_scene[i]))
-end
-
-server:sendToAll("players",players_send)
-end
 end
 function local_update_server()
 server:update()
@@ -138,4 +131,5 @@ function love.update(dt)
 else
 	print("Failure")
 end
+print("SEND PACKETS:" .. server:getTotalSentPackets())
 end
