@@ -60,7 +60,7 @@ function love.load()
 
 		
 	server:on("send_msg",function(msg,client)
-		
+	
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
 	end)
 	server:on("get_player_server", function (player,client)
@@ -131,5 +131,5 @@ function love.update(dt)
 else
 	print("Failure")
 end
-print("SEND PACKETS:" .. server:getTotalSentPackets())
+
 end

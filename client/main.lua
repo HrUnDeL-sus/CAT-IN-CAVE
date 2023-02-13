@@ -159,10 +159,12 @@ end)
 	 	      client:on("get_player", function (player)
 			  if(my_player.animator~=nil) then
 			  my_player=new_player(player.x,player.y,player.name,my_player.animator)
+				select_current_cat_animation_from_server(my_player,player.current_animation)
 			  else
 			  print("THAT")
 			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
 			  init_cat_animator(my_player)
+			  
 			  select_current_cat_animation_from_server(my_player,player.current_animation)
 			  end
 			 
@@ -180,6 +182,7 @@ function love.load()
 	 cam:setWorld(0,0,20000,720)
 	 	
 	 client = sock.newClient("88.85.171.249", 22123)
+	 client:setMessageTimeout(10)
 	 init_client_requests()
 
 	  client:connect()
@@ -189,30 +192,33 @@ function love.quit()
 
 end
 function move_cat(is_left)
-
+set_animation(my_player.animator,"run")
 if(is_left==false) then
- my_player.x=my_player.x+1
+ my_player.x=my_player.x+2
 	 my_player.is_mirror=false
 else
- my_player.x=my_player.x-1
+ my_player.x=my_player.x-2
 	 my_player.is_mirror=true
 
 end
+
 	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
 
-
 end
+
 function key_is_press()
 
 if chat_is_active==false then
 if(my_player.animator~=nil) then
-  set_animation(my_player.animator,"run")
+  
    if love.keyboard.isDown("d") then
     move_cat(false)
   elseif love.keyboard.isDown("a") then
     move_cat(true)
    elseif(my_player.animator.name_main_anim=="run") then
+    print("NAME:" .. my_player.animator.name_main_anim)
    set_animation(my_player.animator,"stand")
+  
    client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
    else
    end
@@ -286,6 +292,7 @@ if(all_players~=nil)then
     love.graphics.print("Send:" .. text_for_chat,all_players[i].x,all_players[i].y-50)
 	 love.graphics.print("X:" .. all_players[i].x,all_players[i].x,all_players[i].y-100)
 	  love.graphics.print("State:" .. client:getState(),all_players[i].x,all_players[i].y-150)
+	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),all_players[i].x,all_players[i].y-200)
 	end
   if all_players[i].is_mirror==true then
  
@@ -303,5 +310,5 @@ end
 function love.update(dt)
 tick=tick+dt
 client:update()
-print("SENT PACKETS:" .. client:getTotalSentPackets())
+
 end
