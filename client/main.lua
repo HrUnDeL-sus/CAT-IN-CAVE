@@ -325,7 +325,7 @@ if(all_players~=nil)then
 	 love.graphics.print("X:" .. all_players[i].x,all_players[i].x,all_players[i].y-150)
 	  love.graphics.print("State:" .. client:getState(),all_players[i].x,all_players[i].y-200)
 	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),all_players[i].x,all_players[i].y-250)
-		love.graphics.print("Move speed:" ..sred_move_player_max/sred_move_player_min,all_players[i].x,all_players[i].y-300)
+		love.graphics.print("Ping:" ..client:getRoundTripTime(),all_players[i].x,all_players[i].y-300)
 		love.graphics.print("Players count:" ..#all_players,all_players[i].x,all_players[i].y-350)
 	end
   if all_players[i].is_mirror==true then
