@@ -141,8 +141,8 @@ all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
  if(my_player.name==all_players[id].name) then
 
-	 my_player=all_players[id]
-	  sred_move_player_max=my_player.x
+	 all_players[id]=my_player
+
 end
 end
 end
@@ -205,7 +205,7 @@ function love.load()
 	 cam:setWorld(0,0,20000,720)
 	 	
 	 client = sock.newClient("88.85.171.249", 22123)
-	 client:setMessageTimeout(10)
+
 	 init_client_requests()
 
 	  client:connect()
@@ -218,8 +218,14 @@ function move_cat(is_left)
 sred_move_player_min=my_player.x
 set_animation(my_player.animator,"run")
 	 my_player.is_mirror=is_left
-	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
 
+	
+	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+	 if(is_left==true) then
+	 my_player.x=my_player.x-1
+	 else 
+	  my_player.x=my_player.x+1
+	 end
 end
 
 function key_is_press()

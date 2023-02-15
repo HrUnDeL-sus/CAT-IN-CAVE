@@ -1,4 +1,5 @@
 require "enet"
+local socket=require'socket'
 local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
@@ -35,7 +36,9 @@ y=ly,
 uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
-is_mirror=false
+is_mirror=false,
+ping=0,
+last_time=0
 }
 end
 function add_build_in_scene(build)
@@ -70,7 +73,7 @@ function generate_world()
 x=0
 for i=1,2000, 1 do
 table.insert(all_vegetation_in_scene,create_random_vegetation(x))
-x=x+math.random(50,100)
+x=x+math.random(70,200)
 end
 
 end
@@ -102,6 +105,8 @@ function love.load()
 	if (all_players_in_scene[find_player_by_id(client:getConnectId())].x>9000) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=9000
 	end
+	all_players_in_scene[find_player_by_id(client:getConnectId())].ping=socket.gettime()-all_players_in_scene[find_player_by_id(client:getConnectId())].last_time
+	all_players_in_scene[find_player_by_id(client:getConnectId())].last_time=socket.gettime()
 	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
