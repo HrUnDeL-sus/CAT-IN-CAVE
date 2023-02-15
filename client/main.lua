@@ -4,11 +4,15 @@ my_player={x=0}
 player_animator={}
 all_players={}
 all_builds={}
+all_vegetations={}
 all_sprites_build={}
+all_sprites_vegetation={}
 chat_is_active=false
 text_for_chat=""
 all_msg_in_chat={}
 tick=0
+sred_move_player_min=0
+sred_move_player_max=0
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -77,28 +81,36 @@ is_mirror=lis_mirror
 }
 
 end
+function init_vegetation_sprites()
+main_sprite_vegetation=love.graphics.newImage("vegetation.png")
+main_sprite_vegetation:setFilter("linear", "nearest")
+for i=1,13,1 do
+all_sprites_vegetation[i]=love.graphics.newQuad(8*(i-1),0,8,8,main_sprite_vegetation)
+end
+
+end
 function init_build_sprites()
 main_sprite_build=love.graphics.newImage("builds.png")
 main_sprite_build:setFilter("linear", "nearest")
 for i=1,5,1 do
-all_sprites_build["home"..i]=love.graphics.newQuad(32*i-1,0,32,32,main_sprite_build)
+all_sprites_build["home"..i]=love.graphics.newQuad(32*(i-1),0,32,32,main_sprite_build)
 end
 for i=1,5,1 do
-all_sprites_build["fortress"..i]=love.graphics.newQuad(32*i-1,32,32,32,main_sprite_build)
+all_sprites_build["fortress"..i]=love.graphics.newQuad(32*(i-1),32,32,32,main_sprite_build)
 end
 for i=1,5,1 do
-all_sprites_build["wall"..i]=love.graphics.newQuad(32*i-1,32*3,32,32,main_sprite_build)
+all_sprites_build["wall"..i]=love.graphics.newQuad(32*(i-1),32*3,32,32,main_sprite_build)
 end
 for i=1,5,1 do
-all_sprites_build["tower"..i]=love.graphics.newQuad(32*i-1,32*4,32,32,main_sprite_build)
+all_sprites_build["tower"..i]=love.graphics.newQuad(32*(i-1),32*4,32,32,main_sprite_build)
 end
 for i=1,5,1 do
-all_sprites_build["shop"..i]=love.graphics.newQuad(32*i-1,32*5,32,32,main_sprite_build)
+all_sprites_build["shop"..i]=love.graphics.newQuad(32*(i-1),32*5,32,32,main_sprite_build)
 end
 all_sprites_build["negotiation_house1"]=love.graphics.newQuad(0,32*2,32,32,main_sprite_build)
 end
 function init_cat_animator(cat)
-			  add_animation(cat.animator,"stand",2,500)
+			  add_animation(cat.animator,"stand",2,40)
 			   add_animation(cat.animator,"run",2,20)
 			   
 end
@@ -127,6 +139,11 @@ else
 all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror)
 
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
+ if(my_player.name==all_players[id].name) then
+
+	 my_player=all_players[id]
+	  sred_move_player_max=my_player.x
+end
 end
 end
 function find_id_player_in_players(player)
@@ -153,7 +170,12 @@ end)
   client:on("builds",function(lbuilds)
 	  all_builds=lbuilds
 	  end)
+	  client:on("vegetations", function(vegetations)
+	  all_vegetations=vegetations
+	  print("SIZE:" .. #all_vegetations)
+	  end)
 	 client:on("update_player",function(lplayer)
+	 
 	 add_player_in_players(lplayer)
 	 end)
 	 	      client:on("get_player", function (player)
@@ -176,6 +198,7 @@ function love.load()
 	cat_image = love.graphics.newImage("cat.png")
 	cat_image:setFilter("linear", "nearest")
 	init_build_sprites()
+	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
      cam = camera.new(0,0,20000,720)
@@ -192,16 +215,9 @@ function love.quit()
 
 end
 function move_cat(is_left)
+sred_move_player_min=my_player.x
 set_animation(my_player.animator,"run")
-if(is_left==false) then
- my_player.x=my_player.x+2
-	 my_player.is_mirror=false
-else
- my_player.x=my_player.x-2
-	 my_player.is_mirror=true
-
-end
-
+	 my_player.is_mirror=is_left
 	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
 
 end
@@ -210,18 +226,18 @@ function key_is_press()
 
 if chat_is_active==false then
 if(my_player.animator~=nil) then
-  
-   if love.keyboard.isDown("d") then
+  if love.keyboard.isDown("d") then
     move_cat(false)
   elseif love.keyboard.isDown("a") then
     move_cat(true)
    elseif(my_player.animator.name_main_anim=="run") then
     print("NAME:" .. my_player.animator.name_main_anim)
    set_animation(my_player.animator,"stand")
-  
-   client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
+   
+	client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,nil),client)
    else
    end
+ 
    end
 end
 end
@@ -273,6 +289,12 @@ love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type],all_b
 end
 
 end
+function draw_vegetations()
+for i=1,#all_vegetations,1 do
+love.graphics.draw(main_sprite_vegetation,all_sprites_vegetation[all_vegetations[i].type],all_vegetations[i].x,all_vegetations[i].y,0,4,4)
+end
+
+end
 function love.draw()
 key_is_press()
 cam:setPosition(my_player.x, 0)
@@ -283,16 +305,22 @@ cam:setPosition(my_player.x, 0)
 for i=1,#all_msg_in_chat,1 do
  love.graphics.print(all_msg_in_chat[i],0,(i-1)*20)
 end
+
 cam:draw(function(l,t,w,h)
 draw_builds()
+draw_vegetations()
 if(all_players~=nil)then
   for i=1,#all_players,1 do
-   love.graphics.print("UID:" .. all_players[i].name,all_players[i].x,all_players[i].y-20)
+   love.graphics.print("UID:" .. all_players[i].name,all_players[i].x,all_players[i].y-50)
    if(all_players[i].name==my_player.name) then
-    love.graphics.print("Send:" .. text_for_chat,all_players[i].x,all_players[i].y-50)
-	 love.graphics.print("X:" .. all_players[i].x,all_players[i].x,all_players[i].y-100)
-	  love.graphics.print("State:" .. client:getState(),all_players[i].x,all_players[i].y-150)
-	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),all_players[i].x,all_players[i].y-200)
+   if(chat_is_active==true) then
+    love.graphics.print("Send:" .. text_for_chat,all_players[i].x,all_players[i].y-100)
+	end
+	 love.graphics.print("X:" .. all_players[i].x,all_players[i].x,all_players[i].y-150)
+	  love.graphics.print("State:" .. client:getState(),all_players[i].x,all_players[i].y-200)
+	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),all_players[i].x,all_players[i].y-250)
+		love.graphics.print("Move speed:" ..sred_move_player_max/sred_move_player_min,all_players[i].x,all_players[i].y-300)
+		love.graphics.print("Players count:" ..#all_players,all_players[i].x,all_players[i].y-350)
 	end
   if all_players[i].is_mirror==true then
  

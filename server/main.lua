@@ -2,13 +2,27 @@ require "enet"
 local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
+all_vegetation_in_scene={}
+function create_random_vegetation(lx)
+ly=520
+ltype=math.random(1,13)
+if(ltype>10) then
+ly=0
+end
+return {
+type=ltype,
+x=lx,
+y=ly,
+uid=random_string(10)
+}
+end
 tick=0
 function create_build(lx,ly,player_uid,ltype)
 return {
 x=lx,
 y=ly,
 uid_player=player_uid,
-uid=random_string(12),
+uid=random_string(11),
 lvl=1,
 type=ltype 
 }
@@ -52,9 +66,16 @@ end
 end
 return true
 end
+function generate_world()
+x=0
+for i=1,2000, 1 do
+table.insert(all_vegetation_in_scene,create_random_vegetation(x))
+x=x+math.random(50,100)
+end
 
+end
 function love.load()
-	
+	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
 
@@ -64,8 +85,17 @@ function love.load()
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
 	end)
 	server:on("get_player_server", function (player,client)
+	if(player.is_mirror==nil) then
+	player.is_mirror=all_players_in_scene[find_player_by_id(client:getConnectId())].is_mirror
+	end
+	player.x=all_players_in_scene[find_player_by_id(client:getConnectId())].x
+	player.y=all_players_in_scene[find_player_by_id(client:getConnectId())].y
 	all_players_in_scene[find_player_by_id(client:getConnectId())]=convert_cliet_player_to_server_player(all_players_in_scene[find_player_by_id(client:getConnectId())],player)
-		
+	if(player.is_mirror==false) then
+	all_players_in_scene[find_player_by_id(client:getConnectId())].x=all_players_in_scene[find_player_by_id(client:getConnectId())].x+1
+	else
+	all_players_in_scene[find_player_by_id(client:getConnectId())].x=all_players_in_scene[find_player_by_id(client:getConnectId())].x-1
+	end
 	if(all_players_in_scene[find_player_by_id(client:getConnectId())].x<500) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=500
 	end
@@ -83,6 +113,7 @@ function love.load()
 		add_player_in_scene(new_player)
 		client:send("get_player",convert_server_player_to_client_player(new_player))
 		client:send("builds",all_build_in_scene)
+		client:send("vegetations",all_vegetation_in_scene)
 		send_player(new_player)
 	--	add_object_in_scene()
 		
@@ -125,11 +156,9 @@ server:update()
 
 end
 function love.update(dt)
-
-	if pcall(local_update_server) then
-		
-else
-	print("Failure")
+local result, err =pcall(local_update_server)
+if err~=nil then
+	print("ERR:" .. err)
 end
 
 end
