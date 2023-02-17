@@ -13,7 +13,7 @@ text_for_chat=""
 all_msg_in_chat={}
 tick=0
 nearest_build=nil
-
+all_cost=nil
 
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
@@ -186,6 +186,10 @@ table.remove(all_msg_in_chat,1)
 end
 
 end)
+client:on("send_cost_build",function(l_cost)
+all_cost=l_cost
+end)
+
 client:on("update_resources",function(res)
 print("UPDTE")
 my_player.resources=res
@@ -195,7 +199,7 @@ end)
 	  end)
 	  client:on("vegetations", function(vegetations)
 	  all_vegetations=vegetations
-	  print("SIZE:" .. #all_vegetations)
+
 	  end)
 	 client:on("update_player",function(lplayer)
 	 
@@ -206,7 +210,6 @@ end)
 			  my_player=new_player(player.x,player.y,player.name,my_player.animator)
 				select_current_cat_animation_from_server(my_player,player.current_animation)
 			  else
-			  print("THAT")
 			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
 			  
 			  init_cat_animator(my_player)
@@ -262,7 +265,7 @@ if(my_player.animator~=nil) then
   elseif love.keyboard.isDown("a") then
     move_cat(true)
    elseif(my_player.animator.name_main_anim=="run") then
-    print("NAME:" .. my_player.animator.name_main_anim)
+   
    set_animation(my_player.animator,"stand")
    
 	client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,nil),client)
@@ -355,11 +358,21 @@ end
 end
 end
 function draw_shop_builds()
+if(all_cost~=nil) then
 x=1
-names={"home1","fortress1","wall1","tower1","shop1","negotiation_house1"}
+names={"home","fortress","wall","tower","shop","negotiation_house"}
 for i=1,#names,1 do
-love.graphics.draw(main_sprite_build,all_sprites_build[names[i]],90+(x*50),0,0,2,2)
+love.graphics.draw(main_sprite_build,all_sprites_build[names[i].."1"],90+(x*50),0,0,2,2)
+q=0
+for i=1,#all_cost[names[i]][1],1 do
+if(all_cost[names[i]][1][i]~=0) then
+love.graphics.draw(main_sprite_icon,all_sprites_icons[i],100+(x*50),70+(q*20),0,4,4)
+love.graphics.print(""..all_cost[names[i]][1][i],120+(x*50),70+(q*20))
+q=q+1
+end
+end
 x=x+1
+end
 end
 end
 function draw_gui()

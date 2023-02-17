@@ -4,6 +4,7 @@ local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
 all_vegetation_in_scene={}
+all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
 function create_random_vegetation(lx)
 ly=520
 ltype=math.random(1,13)
@@ -133,11 +134,6 @@ function love.load()
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
-	server:on("get_cost_build",function(ltype,client)
-	
-	client:send("send_cost_build",init_update_cost(ltype))
-	end)
-		
 	server:on("send_msg",function(msg,client)
 	
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
@@ -169,9 +165,16 @@ function love.load()
 		print("Client connect")
 		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(500,2000),500)
 		add_player_in_scene(new_player)
+		all_cost={}
+	for i=1,#all_type_builds,1 do
+	all_cost[all_type_builds[i]]=init_update_cost(all_type_builds[i])
+	print("NA:" .. all_type_builds[i])
+	end
 		client:send("get_player",convert_server_player_to_client_player(new_player))
 		client:send("builds",all_build_in_scene)
 		client:send("vegetations",all_vegetation_in_scene)
+			
+	client:send("send_cost_build",all_cost)
 		send_player(new_player)
 	--	add_object_in_scene()
 		
