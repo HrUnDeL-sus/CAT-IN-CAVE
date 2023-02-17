@@ -18,6 +18,59 @@ uid=random_string(10)
 }
 end
 tick=0
+function init_update_cost(ltype)
+if(ltype=="home") then
+return { 
+{0,0,0,0,1},
+{5,0,0,0,0},
+{10,5,0,0,0},
+{10,10,5,0,0},
+{10,10,10,5,0}
+}
+end
+if(ltype=="wall") then
+return { 
+{0,0,0,0,1},
+{5,0,0,0,0},
+{10,5,0,0,0},
+{10,10,5,0,0},
+{10,10,10,5,0}
+}
+end
+if(ltype=="fortress") then
+return { 
+{0,0,0,0,1},
+{5,0,0,0,0},
+{10,5,0,0,0},
+{10,10,5,0,0},
+{10,10,10,5,0}
+}
+end
+if(ltype=="tower") then
+return { 
+{0,0,0,0,1},
+{5,0,0,0,0},
+{10,5,0,0,0},
+{10,10,5,0,0},
+{10,10,10,5,0}
+}
+end
+if(ltype=="shop") then
+return { 
+{0,0,0,0,1},
+{5,0,0,0,0},
+{10,5,0,0,0},
+{10,10,5,0,0},
+{10,10,10,5,0}
+}
+end
+if(ltype=="negotiation_house") then
+return { 
+{0,0,0,0,1}
+}
+end
+
+end
 function create_build(lx,ly,player_uid,ltype)
 return {
 x=lx,
@@ -25,7 +78,7 @@ y=ly,
 uid_player=player_uid,
 uid=random_string(11),
 lvl=1,
-type=ltype 
+type=ltype
 }
 end
 function create_player(lname,client_id,lx,ly)
@@ -37,8 +90,7 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-ping=0,
-last_time=0
+resources={0,0,0,0,10,10}
 }
 end
 function add_build_in_scene(build)
@@ -81,7 +133,10 @@ function love.load()
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
-
+	server:on("get_cost_build",function(ltype,client)
+	
+	client:send("send_cost_build",init_update_cost(ltype))
+	end)
 		
 	server:on("send_msg",function(msg,client)
 	
@@ -105,8 +160,6 @@ function love.load()
 	if (all_players_in_scene[find_player_by_id(client:getConnectId())].x>9000) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=9000
 	end
-	all_players_in_scene[find_player_by_id(client:getConnectId())].ping=socket.gettime()-all_players_in_scene[find_player_by_id(client:getConnectId())].last_time
-	all_players_in_scene[find_player_by_id(client:getConnectId())].last_time=socket.gettime()
 	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
@@ -126,13 +179,28 @@ end)
 server:on("create_build", function(ltype,lclient)
 
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if(can_place_build_in_position(lplayer.x)) then
+if(can_place_build_in_position(lplayer.x) and can_buy_build(lclient,ltype)) then
 add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
+
 server:sendToAll("builds",all_build_in_scene)
 end
 
 end)
+end
 
+function can_buy_build(lclient,ltype)
+build_cost=init_update_cost(ltype)
+lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
+if(lplayer.resources[1]-build_cost[1][1]>=0 and lplayer.resources[2]-build_cost[1][2]>=0 and lplayer.resources[3]-build_cost[1][3]>=0  and lplayer.resources[4]-build_cost[1][4]>=0 and  lplayer.resources[5]-build_cost[1][5]>=0) then
+for i=1,4,1 do
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[i]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[i]-build_cost[1][i]
+end
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[5]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[5]-build_cost[1][5]
+
+lclient:send("update_resources",all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources)
+return true
+end
+return false
 end
 function convert_cliet_player_to_server_player(player,player2)
 player.x=player2.x

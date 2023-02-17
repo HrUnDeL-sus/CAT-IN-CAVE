@@ -6,13 +6,15 @@ all_players={}
 all_builds={}
 all_vegetations={}
 all_sprites_build={}
+all_sprites_icons={}
 all_sprites_vegetation={}
 chat_is_active=false
 text_for_chat=""
 all_msg_in_chat={}
 tick=0
-sred_move_player_min=0
-sred_move_player_max=0
+nearest_build=nil
+
+
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -71,13 +73,22 @@ is_mirror=lis_mirror
 
 
 end
+function find_nearest_build()
+for i=1,#all_builds,1 do
+if(math.abs(my_player.x-(all_builds[i].x+40))<60)then
+return all_builds[i]
+end
+end
+return nil
+end
 function new_player(lx,ly,lname,lanimator,lis_mirror)
 return {
 x=lx,
 y=ly,
 name=lname,
 animator=lanimator,
-is_mirror=lis_mirror
+is_mirror=lis_mirror,
+resources={0,0,0,0,10,10}
 }
 
 end
@@ -88,6 +99,14 @@ for i=1,13,1 do
 all_sprites_vegetation[i]=love.graphics.newQuad(8*(i-1),0,8,8,main_sprite_vegetation)
 end
 
+end
+function init_icons()
+main_sprite_icon=love.graphics.newImage("icons.png")
+main_sprite_icon:setFilter("linear", "nearest")
+for i=1,16,1 do
+all_sprites_icons[i]=love.graphics.newQuad(4*(i-1),0,4,4,main_sprite_icon)
+
+end
 end
 function init_build_sprites()
 main_sprite_build=love.graphics.newImage("builds.png")
@@ -167,6 +186,10 @@ table.remove(all_msg_in_chat,1)
 end
 
 end)
+client:on("update_resources",function(res)
+print("UPDTE")
+my_player.resources=res
+end)
   client:on("builds",function(lbuilds)
 	  all_builds=lbuilds
 	  end)
@@ -185,19 +208,22 @@ end)
 			  else
 			  print("THAT")
 			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
+			  
 			  init_cat_animator(my_player)
 			  
 			  select_current_cat_animation_from_server(my_player,player.current_animation)
 			  end
-			 
+				
 end)
 
 end
 function love.load()
-
+	font = love.graphics.newFont("Pixtile.ttf", 15)
+	love.graphics.setFont(font)
 	cat_image = love.graphics.newImage("cat.png")
 	cat_image:setFilter("linear", "nearest")
 	init_build_sprites()
+	init_icons()
 	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
@@ -215,7 +241,6 @@ function love.quit()
 
 end
 function move_cat(is_left)
-sred_move_player_min=my_player.x
 set_animation(my_player.animator,"run")
 	 my_player.is_mirror=is_left
 
@@ -268,30 +293,29 @@ text_for_chat=text_for_chat .. key
 end
 else
    if key == "1" then
-    client:send("create_build","home1",client)
+    client:send("create_build","home",client)
    end
       if key == "2" then
-    client:send("create_build","fortress1",client)
+    client:send("create_build","fortress",client)
    end
       if key == "3" then
-    client:send("create_build","wall1",client)
+    client:send("create_build","wall",client)
    end
       if key == "4" then
-    client:send("create_build","tower1",client)
+    client:send("create_build","tower",client)
    end
       if key == "5" then
-    client:send("create_build","shop1",client)
+    client:send("create_build","shop",client)
    end
       if key == "6" then
-    client:send("create_build","negotiation_house1",client)
+    client:send("create_build","negotiation_house",client)
    end
 
    end
 end
 function draw_builds()
 for i=1,#all_builds,1 do
-
-love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type],all_builds[i].x,all_builds[i].y,0,4,4)
+love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type..all_builds[i].lvl],all_builds[i].x,all_builds[i].y,0,4,4)
 end
 
 end
@@ -301,48 +325,97 @@ love.graphics.draw(main_sprite_vegetation,all_sprites_vegetation[all_vegetations
 end
 
 end
+function draw_chat()
+for i=1,#all_msg_in_chat,1 do
+ love.graphics.print(all_msg_in_chat[i],0,(i-1)*20)
+end
+
+end
+function draw_shop_icons()
+start_x=nearest_build.x
+for i=8,12,1 do
+love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
+start_x=start_x+35
+end
+
+end
+function draw_home_icons()
+start_x=nearest_build.x
+for i=12,14,1 do
+love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
+start_x=start_x+80
+end
+end
+function draw_icons()
+if(my_player.resources~=nil) then
+for i=1,6,1 do
+love.graphics.draw(main_sprite_icon,all_sprites_icons[i],450,60+(i*20),0,4,4)
+love.graphics.print(""..my_player.resources[i],470,60+(i*20))
+end
+end
+end
+function draw_shop_builds()
+x=1
+names={"home1","fortress1","wall1","tower1","shop1","negotiation_house1"}
+for i=1,#names,1 do
+love.graphics.draw(main_sprite_build,all_sprites_build[names[i]],90+(x*50),0,0,2,2)
+x=x+1
+end
+end
+function draw_gui()
+
+draw_chat()
+draw_icons()
+if(nearest_build==nil) then
+draw_shop_builds()
+end
+if(chat_is_active==true) then
+    love.graphics.print("Send:" .. text_for_chat,300,450)
+	end
+	 love.graphics.print("X:" .. my_player.x,300,430)
+	  love.graphics.print("State:" .. client:getState(),450,0)
+	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),450,20)
+		love.graphics.print("Ping:" ..client:getRoundTripTime(),450,40)
+		love.graphics.print("Players count:" ..#all_players,450,60)
+end
 function love.draw()
 key_is_press()
+
 cam:setPosition(my_player.x, 0)
 			 for i = 0, 1000 do
             love.graphics.draw(background_image, (i* background_image:getWidth())-my_player.x,0,0,1,love.graphics.getHeight() / background_image:getHeight())
     end
   love.graphics.draw(platform_image,0, love.graphics.getHeight()-50,0,love.graphics.getWidth()/platform_image:getWidth(), love.graphics.getHeight()/platform_image:getHeight()/10)
-for i=1,#all_msg_in_chat,1 do
- love.graphics.print(all_msg_in_chat[i],0,(i-1)*20)
-end
+
 
 cam:draw(function(l,t,w,h)
 draw_builds()
 draw_vegetations()
+if(nearest_build~=nil and nearest_build.type=="home") then
+draw_home_icons()
+elseif(nearest_build~=nil and nearest_build.type=="shop") then
+draw_shop_icons()
+end
 if(all_players~=nil)then
   for i=1,#all_players,1 do
-   love.graphics.print("UID:" .. all_players[i].name,all_players[i].x,all_players[i].y-50)
    if(all_players[i].name==my_player.name) then
-   if(chat_is_active==true) then
-    love.graphics.print("Send:" .. text_for_chat,all_players[i].x,all_players[i].y-100)
-	end
-	 love.graphics.print("X:" .. all_players[i].x,all_players[i].x,all_players[i].y-150)
-	  love.graphics.print("State:" .. client:getState(),all_players[i].x,all_players[i].y-200)
-	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),all_players[i].x,all_players[i].y-250)
-		love.graphics.print("Ping:" ..client:getRoundTripTime(),all_players[i].x,all_players[i].y-300)
-		love.graphics.print("Players count:" ..#all_players,all_players[i].x,all_players[i].y-350)
-	end
+   
   if all_players[i].is_mirror==true then
  
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
    else 
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,4,4)
    end
-  
-  end
- end
-end)
+   end
+   end
+   end
 
+end)
+draw_gui()
 end
 
 function love.update(dt)
 tick=tick+dt
 client:update()
-
+nearest_build=find_nearest_build()
 end
