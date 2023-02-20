@@ -2,12 +2,20 @@ local sock = require "sock"
 local camera = require "gamera"
 my_player={x=0}
 player_animator={}
+cat_miner_animator={}
+cat_sword_animator={}
+cat_archer_animator={}
+cat_woodcutter_animator={}
+cat_woodcutter_animator={}
+cat_priest_animator={}
+cat_shield_animator={}
+all_cats={}
 all_players={}
-all_builds={}
+all_builds={}cats_main_sprites={}
 all_vegetations={}
 all_sprites_build={}
 all_sprites_icons={}
-all_sprites_vegetation={}
+all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
 chat_is_active=false
 text_for_chat=""
 all_msg_in_chat={}
@@ -75,7 +83,7 @@ is_mirror=lis_mirror
 end
 function find_nearest_build()
 for i=1,#all_builds,1 do
-if(math.abs(my_player.x-(all_builds[i].x+40))<60)then
+if(math.abs(my_player.x-(all_builds[i].x+40))<60) and all_builds[i].uid_player==my_player.uid then
 return all_builds[i]
 end
 end
@@ -88,7 +96,8 @@ y=ly,
 name=lname,
 animator=lanimator,
 is_mirror=lis_mirror,
-resources={0,0,0,0,10,10}
+resources={0,0,0,0,10,10},
+uid=-1
 }
 
 end
@@ -103,7 +112,7 @@ end
 function init_icons()
 main_sprite_icon=love.graphics.newImage("icons.png")
 main_sprite_icon:setFilter("linear", "nearest")
-for i=1,16,1 do
+for i=1,14,1 do
 all_sprites_icons[i]=love.graphics.newQuad(4*(i-1),0,4,4,main_sprite_icon)
 
 end
@@ -123,16 +132,21 @@ end
 for i=1,5,1 do
 all_sprites_build["tower"..i]=love.graphics.newQuad(32*(i-1),32*4,32,32,main_sprite_build)
 end
-for i=1,5,1 do
-all_sprites_build["shop"..i]=love.graphics.newQuad(32*(i-1),32*5,32,32,main_sprite_build)
-end
 all_sprites_build["negotiation_house1"]=love.graphics.newQuad(0,32*2,32,32,main_sprite_build)
 end
-function init_cat_animator(cat)
+function init_cat_animator(cat,ltype)print("IS NIL22:",cat.animator==nil)
 			  add_animation(cat.animator,"stand",2,40)
 			   add_animation(cat.animator,"run",2,20)
-			   
-end
+if (ltype=="archer") then
+add_animation(cat.animator,"attack",2,30)
+elseif(ltype=="sword") then
+add_animation(cat.animator,"attack",3,30)
+elseif(ltype=="woodcutter" or ltype=="miner") then
+add_animation(cat.animator,"work",3,30)
+	  add_animation(cat.animator,"stand2",2,40)
+			   add_animation(cat.animator,"run2",2,20)
+else
+endend
 function select_current_cat_animation_from_server(cat,anim)
 
  if(anim=="") then
@@ -145,12 +159,13 @@ end
 function add_player_in_players(player)
 lplayer=nil
 id=find_id_player_in_players(player)
+
 if(id==-1) then
 	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false)
 
 table.insert(all_players,lplayer)
 
-init_cat_animator(all_players[#all_players])
+init_cat_animator(all_players[#all_players],"cat")
 select_current_cat_animation_from_server(all_players[#all_players],player.current_animation)
 
 else
@@ -158,6 +173,7 @@ else
 all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror)
 
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
+
  if(my_player.name==all_players[id].name) then
 
 	 all_players[id]=my_player
@@ -165,6 +181,19 @@ select_current_cat_animation_from_server(all_players[id],player.current_animatio
 end
 end
 end
+function new_cat(cat)
+return {
+x=cat.x,
+y=cat.y,
+type=cat.type,
+animator=new_animator(cats_main_sprites[cat.type],16,16),
+uid_player=cat.uid_player,
+lvl=cat.lvl
+
+}
+
+endfunction add_cat_to_all_cats(cat)id=find_id_cat_in_cats(cat)if(id==-1) thentable.insert(all_cats,new_cat(cat))
+set_animation(all_cats[#all_cats].animator,"stand")print("Is null2:"..all_cats[#all_cats].animator.timer)init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)else--set_animation(cat.animator,cat.anim)--all_cats[id]=new_cat(cat)endendfunction find_id_cat_in_cats(cat)if(all_cats==nil) thenreturn -1endfor i=1, #all_cats,1 doif(all_cats[i].uid==cat.uid) thenreturn iendendreturn -1end
 function find_id_player_in_players(player)
 if(all_players==nil) then
 return -1
@@ -181,7 +210,7 @@ end
 function init_client_requests()
 client:on("get_message",function(msg)
 table.insert(all_msg_in_chat,msg)
-if(#all_msg_in_chat>10) then
+if(#all_msg_in_chat>5) then
 table.remove(all_msg_in_chat,1)
 end
 
@@ -191,9 +220,9 @@ all_cost=l_cost
 end)
 
 client:on("update_resources",function(res)
-print("UPDTE")
+
 my_player.resources=res
-end)
+end)client:on("update_cat",function(cat)add_cat_to_all_cats(cat)end)
   client:on("builds",function(lbuilds)
 	  all_builds=lbuilds
 	  end)
@@ -212,14 +241,15 @@ end)
 			  else
 			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
 			  
-			  init_cat_animator(my_player)
+			  init_cat_animator(my_player,"cat")
 			  
 			  select_current_cat_animation_from_server(my_player,player.current_animation)
 			  end
-				
+			my_player.uid=player.uid
 end)
 
-end
+endfunction init_cats()for i=1,#all_type_cats,1 docats_main_sprites[all_type_cats[i]]=love.graphics.newImage(all_type_cats[i] .."_cat.png")
+cats_main_sprites[all_type_cats[i]]:setFilter("linear", "nearest")endend
 function love.load()
 	font = love.graphics.newFont("Pixtile.ttf", 15)
 	love.graphics.setFont(font)
@@ -227,6 +257,7 @@ function love.load()
 	cat_image:setFilter("linear", "nearest")
 	init_build_sprites()
 	init_icons()
+	init_cats()
 	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
@@ -296,24 +327,44 @@ text_for_chat=text_for_chat .. key
 end
 else
    if key == "1" then
+   if(nearest_build~=nil and nearest_build.type=="home") then   print("IS NIL:",client==nil)
+   client:send("create_cat",{"archer",nearest_build},client)
+   else
     client:send("create_build","home",client)
+	end
    end
       if key == "2" then
+	     if(nearest_build~=nil and nearest_build.type=="home") then
+	 client:send("create_cat",{"sword",nearest_build},client)
+   else
     client:send("create_build","fortress",client)
+	end
    end
       if key == "3" then
+	     if(nearest_build~=nil and nearest_build.type=="home") then
+    client:send("create_cat",{"assassin",nearest_build},client)
+   else
     client:send("create_build","wall",client)
+		end
    end
       if key == "4" then
+	     if(nearest_build~=nil and nearest_build.type=="home") then
+      client:send("create_cat",{"shield",nearest_build},client)
+   
+   else
     client:send("create_build","tower",client)
+		end
    end
       if key == "5" then
-    client:send("create_build","shop",client)
-   end
-      if key == "6" then
+	     if(nearest_build~=nil and nearest_build.type=="home") then
+    client:send("create_cat",{"priest",nearest_build},client)
+   else
     client:send("create_build","negotiation_house",client)
+		end
    end
-
+	if key=="6" and nearest_build~=nil and nearest_build.type=="home" then
+	  client:send("create_cat",{"miner",nearest_build},client)	end	if key=="7" and nearest_build~=nil and nearest_build.type=="home" then
+	  client:send("create_cat",{"woodcutter",nearest_build},client)	end
    end
 end
 function draw_builds()
@@ -334,20 +385,13 @@ for i=1,#all_msg_in_chat,1 do
 end
 
 end
-function draw_shop_icons()
-start_x=nearest_build.x
-for i=8,12,1 do
+function draw_home_icons()
+start_x=nearest_build.x-35
+for i=8,13,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
 start_x=start_x+35
 end
 
-end
-function draw_home_icons()
-start_x=nearest_build.x
-for i=12,14,1 do
-love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
-start_x=start_x+80
-end
 end
 function draw_icons()
 if(my_player.resources~=nil) then
@@ -360,7 +404,7 @@ end
 function draw_shop_builds()
 if(all_cost~=nil) then
 x=1
-names={"home","fortress","wall","tower","shop","negotiation_house"}
+names={"home","fortress","wall","tower","negotiation_house"}
 for i=1,#names,1 do
 love.graphics.draw(main_sprite_build,all_sprites_build[names[i].."1"],90+(x*50),0,0,2,2)
 q=0
@@ -390,7 +434,7 @@ if(chat_is_active==true) then
 	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),450,20)
 		love.graphics.print("Ping:" ..client:getRoundTripTime(),450,40)
 		love.graphics.print("Players count:" ..#all_players,450,60)
-end
+endfunction draw_cats()for i=1,#all_cats,1 dodraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)endend
 function love.draw()
 key_is_press()
 
@@ -411,18 +455,15 @@ draw_shop_icons()
 end
 if(all_players~=nil)then
   for i=1,#all_players,1 do
-   if(all_players[i].name==my_player.name) then
-   
   if all_players[i].is_mirror==true then
  
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
    else 
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,4,4)
    end
-   end
-   end
-   end
 
+   end
+   end   draw_cats()
 end)
 draw_gui()
 end

@@ -4,6 +4,7 @@ local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
 all_vegetation_in_scene={}
+all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
 function create_random_vegetation(lx)
 ly=520
@@ -56,20 +57,24 @@ return {
 {10,10,10,5,0}
 }
 end
-if(ltype=="shop") then
-return { 
-{0,0,0,0,1},
-{5,0,0,0,0},
-{10,5,0,0,0},
-{10,10,5,0,0},
-{10,10,10,5,0}
-}
-end
 if(ltype=="negotiation_house") then
 return { 
 {0,0,0,0,1}
 }
 end
+
+end
+function create_cat(lx,ly,player_uid,type)
+return {
+x=lx,
+y=ly,
+uid_player=player_uid,
+uid=random_string(13),
+lvl=1,
+type=ltype,
+animator=nil,
+anim="stand"
+}
 
 end
 function create_build(lx,ly,player_uid,ltype)
@@ -91,8 +96,13 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-resources={0,0,0,0,10,10}
+resources={0,0,0,0,10,10},
+my_builds={},
+my_cats={}
 }
+end
+function add_cat_in_scene(cat)
+table.insert(all_cats_in_scene,cat)
 end
 function add_build_in_scene(build)
 table.insert(all_build_in_scene,build)
@@ -144,6 +154,7 @@ function love.load()
 	end
 	player.x=all_players_in_scene[find_player_by_id(client:getConnectId())].x
 	player.y=all_players_in_scene[find_player_by_id(client:getConnectId())].y
+	
 	all_players_in_scene[find_player_by_id(client:getConnectId())]=convert_cliet_player_to_server_player(all_players_in_scene[find_player_by_id(client:getConnectId())],player)
 	if(player.is_mirror==false) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=all_players_in_scene[find_player_by_id(client:getConnectId())].x+1
@@ -163,14 +174,16 @@ function love.load()
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
-		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(500,2000),500)
+		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(1000,2000),500)
 		add_player_in_scene(new_player)
 		all_cost={}
 	for i=1,#all_type_builds,1 do
 	all_cost[all_type_builds[i]]=init_update_cost(all_type_builds[i])
 	print("NA:" .. all_type_builds[i])
 	end
-		client:send("get_player",convert_server_player_to_client_player(new_player))
+	new_player_send=convert_server_player_to_client_player(new_player)
+	new_player_send.uid=new_player.uid
+		client:send("get_player",new_player_send)
 		client:send("builds",all_build_in_scene)
 		client:send("vegetations",all_vegetation_in_scene)
 			
@@ -179,12 +192,23 @@ function love.load()
 	--	add_object_in_scene()
 		
 end)
+server:on("create_cat", function(data,lclient)
+ltype=data[1]
+lbuild=data[2]
+lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
+
+add_cat_in_scene(create_cat(lbuild.x+math.random(0,100),lbuild.y+65,lbuild.uid_player,ltype))
+table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats,all_cats_in_scene[#all_cats_in_scene])
+server:sendToAll("update_cat",all_cats_in_scene[#all_cats_in_scene])
+
+
+end)
 server:on("create_build", function(ltype,lclient)
 
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
 if(can_place_build_in_position(lplayer.x) and can_buy_build(lclient,ltype)) then
 add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
-
+table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_builds,all_build_in_scene[#all_build_in_scene])
 server:sendToAll("builds",all_build_in_scene)
 end
 
@@ -219,7 +243,8 @@ x=player.x,
 y=player.y,
 name=player.name,
 current_animation=player.current_animation,
-is_mirror=player.is_mirror
+is_mirror=player.is_mirror,
+uid=-1
 }
 
 end
