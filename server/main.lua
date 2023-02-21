@@ -4,6 +4,7 @@ local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
 all_vegetation_in_scene={}
+tick=0
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
 function create_random_vegetation(lx)
@@ -73,6 +74,7 @@ uid=random_string(13),
 lvl=1,
 type=ltype,
 animator=nil,
+new_pos=math.random(600,2000),
 anim="stand"
 }
 
@@ -170,7 +172,6 @@ function love.load()
 	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
-	
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
@@ -186,7 +187,9 @@ function love.load()
 		client:send("get_player",new_player_send)
 		client:send("builds",all_build_in_scene)
 		client:send("vegetations",all_vegetation_in_scene)
-			
+		for i=1,#all_cats_in_scene,1 do
+		client:send("update_cat",all_cats_in_scene[i])
+		end
 	client:send("send_cost_build",all_cost)
 		send_player(new_player)
 	--	add_object_in_scene()
@@ -256,10 +259,32 @@ function local_update_server()
 server:update()
 
 end
+function active_cat_ii()
+for i=1,#all_cats_in_scene,1 do
+
+if math.abs(all_cats_in_scene[i].x-all_cats_in_scene[i].new_pos)<5 then
+all_cats_in_scene[i].new_pos=math.random(500,10000)
+end
+if all_cats_in_scene[i].x<all_cats_in_scene[i].new_pos then
+all_cats_in_scene[i].x=all_cats_in_scene[i].x+5
+else
+all_cats_in_scene[i].x=all_cats_in_scene[i].x-5
+end
+
+server:sendToAll("update_cat",all_cats_in_scene[i])
+end
+
+end
 function love.update(dt)
 local result, err =pcall(local_update_server)
+tick=tick+dt
+if(tick>1/20) then
+active_cat_ii()
+tick=0
+end
 if err~=nil then
 	print("ERR:" .. err)
+	
 end
 
 end

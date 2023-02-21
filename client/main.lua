@@ -181,19 +181,21 @@ select_current_cat_animation_from_server(all_players[id],player.current_animatio
 end
 end
 end
-function new_cat(cat)
+function new_cat(cat,anim)
 return {
 x=cat.x,
 y=cat.y,
 type=cat.type,
-animator=new_animator(cats_main_sprites[cat.type],16,16),
+animator=anim,
 uid_player=cat.uid_player,
+uid=cat.uid,
 lvl=cat.lvl
 
 }
 
-endfunction add_cat_to_all_cats(cat)id=find_id_cat_in_cats(cat)if(id==-1) thentable.insert(all_cats,new_cat(cat))
-set_animation(all_cats[#all_cats].animator,"stand")print("Is null2:"..all_cats[#all_cats].animator.timer)init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)else--set_animation(cat.animator,cat.anim)--all_cats[id]=new_cat(cat)endendfunction find_id_cat_in_cats(cat)if(all_cats==nil) thenreturn -1endfor i=1, #all_cats,1 doif(all_cats[i].uid==cat.uid) thenreturn iendendreturn -1end
+endfunction add_cat_to_all_cats(cat)id=find_id_cat_in_cats(cat)if(id==-1) thentable.insert(all_cats,new_cat(cat,new_animator(cats_main_sprites[cat.type],16,16)))
+set_animation(all_cats[#all_cats].animator,"stand")print("Is null2:"..all_cats[#all_cats].animator.timer)init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)elseset_animation(all_cats[id].animator,cat.anim)all_cats[id]=new_cat(cat,all_cats[id].animator)endendfunction find_id_cat_in_cats(cat)if(all_cats==nil) thenreturn -1endfor i=1, #all_cats,1 do
+if(all_cats[i].uid==cat.uid) thenreturn iendendreturn -1end
 function find_id_player_in_players(player)
 if(all_players==nil) then
 return -1
