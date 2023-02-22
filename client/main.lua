@@ -189,7 +189,8 @@ type=cat.type,
 animator=anim,
 uid_player=cat.uid_player,
 uid=cat.uid,
-lvl=cat.lvl
+lvl=cat.lvl,
+is_mirror=cat.is_mirror
 
 }
 
@@ -436,7 +437,11 @@ if(chat_is_active==true) then
 	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),450,20)
 		love.graphics.print("Ping:" ..client:getRoundTripTime(),450,40)
 		love.graphics.print("Players count:" ..#all_players,450,60)
-endfunction draw_cats()for i=1,#all_cats,1 dodraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)endend
+endfunction draw_cats()for i=1,#all_cats,1 do
+if(all_cats[i].is_mirror==true) thendraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)
+else
+draw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,4,4)
+endendend
 function love.draw()
 key_is_press()
 

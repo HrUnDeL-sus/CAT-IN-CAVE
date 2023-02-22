@@ -17,7 +17,8 @@ return {
 type=ltype,
 x=lx,
 y=ly,
-uid=random_string(10)
+uid=random_string(10),
+hp=100
 }
 end
 tick=0
@@ -66,7 +67,7 @@ end
 
 end
 function create_cat(lx,ly,player_uid,type)
-return {
+main_table={
 x=lx,
 y=ly,
 uid_player=player_uid,
@@ -74,8 +75,40 @@ uid=random_string(13),
 lvl=1,
 type=ltype,
 animator=nil,
-new_pos=math.random(600,2000),
-anim="stand"
+anim="stand",
+is_mirror=false
+}
+
+if ltype=="woodcutter" or ltype == "miner" then
+table_res={
+amount_resources=0,
+resource_build=nil
+}
+setmetatable(table_res,{__index=main_table})
+else
+table_res={
+
+}
+setmetatable(table_res,{__index=main_table})
+
+
+end
+
+return table_res
+end
+function convert_server_cat_to_client_cat(cat)
+return {
+x=cat.x,
+y=cat.y,
+uid_player=cat.uid_player,
+uid=cat.uid,
+lvl=cat.lvl,
+type=cat.type,
+animator=nil,
+anim=cat.anim,
+is_mirror=cat.is_mirror
+
+
 }
 
 end
@@ -188,7 +221,7 @@ function love.load()
 		client:send("builds",all_build_in_scene)
 		client:send("vegetations",all_vegetation_in_scene)
 		for i=1,#all_cats_in_scene,1 do
-		client:send("update_cat",all_cats_in_scene[i])
+		client:send("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))
 		end
 	client:send("send_cost_build",all_cost)
 		send_player(new_player)
@@ -202,7 +235,7 @@ lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
 
 add_cat_in_scene(create_cat(lbuild.x+math.random(0,100),lbuild.y+65,lbuild.uid_player,ltype))
 table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats,all_cats_in_scene[#all_cats_in_scene])
-server:sendToAll("update_cat",all_cats_in_scene[#all_cats_in_scene])
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[#all_cats_in_scene]))
 
 
 end)
@@ -259,19 +292,124 @@ function local_update_server()
 server:update()
 
 end
+function find_nearest_vegetation(x1,ltypes)
+x3=1000000000
+id=nil
+for i=1,#all_vegetation_in_scene,1 do
+this_ltype=false
+for q=1,#ltypes,1 do
+if all_vegetation_in_scene[i].type==ltypes[q] then
+this_ltype=true
+end
+end
+if math.abs(all_vegetation_in_scene[i].x-x1)<x3  and this_ltype==true then
+x3=math.abs(all_vegetation_in_scene[i].x-x1)
+id=i
+end
+end
+return id
+end
+function find_build(builds,ltype)
+for i=1,#builds,1 do
+if builds[i].type==ltype then
+return builds[i]
+end
+end
+return nil
+end
+function move_cat(cat,x)
+if(cat.x<x) then
+cat.is_mirror=false
+cat.x=cat.x+5
+else
+
+cat.is_mirror=true
+cat.x=cat.x-5
+end
+
+end
+function damage_vegetation(vegetation_id,damage)
+all_vegetation_in_scene[vegetation_id].hp=all_vegetation_in_scene[vegetation_id].hp-damage
+
+if(all_vegetation_in_scene[vegetation_id].hp<0) then
+table.remove(all_vegetation_in_scene,vegetation_id)
+server:sendToAll("vegetations",all_vegetation_in_scene)
+return true
+else
+return false
+end
+end
+function active_woodcutter_and_miner_ii(cat)
+id=-1
+if(cat.anim~="stand2" and cat.anim ~="run2")  then
+	if cat.type=="miner" then
+		id=find_nearest_vegetation(cat.x,{1,2,3,4,5,6,7,8})
+		cat.resource_build=all_vegetation_in_scene[id]
+else
+		id=find_nearest_vegetation(cat.x,{10})
+		cat.resource_build=all_vegetation_in_scene[id]
+end 
+
+	if math.abs(cat.x-cat.resource_build.x)>6 then
+		cat.anim="run"
+		move_cat(cat,cat.resource_build.x)
+	else 
+		cat.anim="work"
+		if(cat.type=="miner" and ((damage_vegetation(find_nearest_vegetation(cat.x,{1,2,3,4,5,6,7,8}),math.random())==true) or  damage_vegetation(find_nearest_vegetation(cat.x,{10}),math.random())==true)) then
+			cat.anim="stand2"
+		end
+	end
+else if(find_player_by_uid(cat.uid_player)~=nil) then
+	pl=find_player_by_uid(cat.uid_player)
+	if (pl~=nil) then
+		buildd=find_build(pl.my_builds,"fortress")
+		if(buildd~=nil) then
+			cat.anim="run2"
+			if math.abs(cat.x-buildd.x)<6 then
+				cat.anim="stand"
+				if(cat.resource_build.type<=3) then
+					pl.resources[1]=pl.resources[1]+10
+				end
+				if(cat.resource_build.type>=3 and cat.resource_build.type<6) then
+					pl.resources[2]=pl.resources[2]+10
+				end
+				if(cat.resource_build.type>=6 and cat.resource_build.type<9) then
+					pl.resources[3]=pl.resources[3]+10
+				end
+				if(cat.resource_build.type==10) then
+					pl.resources[4]=pl.resources[4]+10
+				end
+				cat.resource_build=nil
+				server:getClientByConnectId(pl.connect_id_client):send("update_resources",pl.resources)
+			else
+			move_cat(cat,buildd.x)
+			end
+		end
+	end
+else
+
+end
+end
+end
+
+
+
+function find_player_by_uid(uid)
+for i=1,#all_players_in_scene,1 do
+if(all_players_in_scene[i].uid==uid) then
+return all_players_in_scene[i]
+end
+end
+return nil
+end
 function active_cat_ii()
 for i=1,#all_cats_in_scene,1 do
 
-if math.abs(all_cats_in_scene[i].x-all_cats_in_scene[i].new_pos)<5 then
-all_cats_in_scene[i].new_pos=math.random(500,10000)
+if all_cats_in_scene[i].type=="miner" or all_cats_in_scene[i].type=="woodcutter" then
+active_woodcutter_and_miner_ii(all_cats_in_scene[i])
 end
-if all_cats_in_scene[i].x<all_cats_in_scene[i].new_pos then
-all_cats_in_scene[i].x=all_cats_in_scene[i].x+5
-else
-all_cats_in_scene[i].x=all_cats_in_scene[i].x-5
-end
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))
 
-server:sendToAll("update_cat",all_cats_in_scene[i])
 end
 
 end
