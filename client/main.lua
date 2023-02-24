@@ -18,6 +18,7 @@ all_sprites_icons={}
 all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
 chat_is_active=false
 text_for_chat=""
+select_priotiry=1
 all_msg_in_chat={}
 tick=0
 nearest_build=nil
@@ -97,7 +98,9 @@ name=lname,
 animator=lanimator,
 is_mirror=lis_mirror,
 resources={0,0,0,0,10,10},
-uid=-1
+priority={80,0,0,0},
+uid=-1,
+count_cats_miner=0
 }
 
 end
@@ -175,7 +178,6 @@ all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
 
  if(my_player.name==all_players[id].name) then
-
 	 all_players[id]=my_player
 
 end
@@ -211,6 +213,13 @@ end
 return -1
 end
 function init_client_requests()
+client:on("get_priority",function(prior)
+my_player.priority=prior
+end)
+client:on("get_count_cats",function(count)
+my_player.count_cats_miner=count
+
+end)
 client:on("get_message",function(msg)
 table.insert(all_msg_in_chat,msg)
 if(#all_msg_in_chat>5) then
@@ -243,17 +252,20 @@ end)client:on("update_cat",function(cat)add_cat_to_all_cats(cat)end)
 				select_current_cat_animation_from_server(my_player,player.current_animation)
 			  else
 			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
-			  
+			 
 			  init_cat_animator(my_player,"cat")
 			  
 			  select_current_cat_animation_from_server(my_player,player.current_animation)
 			  end
 			my_player.uid=player.uid
+			 my_player.priority=player.priority
+
 end)
 
 endfunction init_cats()for i=1,#all_type_cats,1 docats_main_sprites[all_type_cats[i]]=love.graphics.newImage(all_type_cats[i] .."_cat.png")
 cats_main_sprites[all_type_cats[i]]:setFilter("linear", "nearest")endend
 function love.load()
+
 	font = love.graphics.newFont("Pixtile.ttf", 15)
 	love.graphics.setFont(font)
 	cat_image = love.graphics.newImage("cat.png")
@@ -264,8 +276,8 @@ function love.load()
 	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
-     cam = camera.new(0,0,20000,720)
-	 cam:setWorld(0,0,20000,720)
+     cam = camera.new(0,0,50000,720)
+	 cam:setWorld(0,0,50000,720)
 	 	
 	 client = sock.newClient("88.85.171.249", 22123)
 
@@ -283,10 +295,11 @@ set_animation(my_player.animator,"run")
 
 	
 	 client:send("get_player_server",new_player_for_server(my_player.x,my_player.y,my_player.name,my_player.animator.name_main_anim,my_player.is_mirror),client)
-	 if(is_left==true) then
+	 if(is_left==true and my_player.x-1>500) then
 	 my_player.x=my_player.x-1
-	 else 
+	 elseif(is_left==false and my_player.x+1<20000) then
 	  my_player.x=my_player.x+1
+	  else
 	 end
 end
 
@@ -329,36 +342,57 @@ elseif string.len(key)<2 then
 text_for_chat=text_for_chat .. key
 end
 else
-   if key == "1" then
+    if key == "1" then
    if(nearest_build~=nil and nearest_build.type=="home") then   print("IS NIL:",client==nil)
    client:send("create_cat",{"archer",nearest_build},client)
+   else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+   select_priotiry=1
    else
     client:send("create_build","home",client)
 	end
    end
-      if key == "2" then
+   end
+    if(nearest_build~=nil and nearest_build.type=="negotiation_house" and key=="q") then
+	if(my_player.priority[select_priotiry]-1>=0)then
+	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]-1
+	client:send("send_priority",my_player.priority,client)
+	end
+	end
+	    if(nearest_build~=nil and nearest_build.type=="negotiation_house" and key=="e") then
+	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]+1
+	client:send("send_priority",my_player.priority,client)
+	end
+    if key == "2" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
 	 client:send("create_cat",{"sword",nearest_build},client)
+	 else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+   select_priotiry=2
    else
     client:send("create_build","fortress",client)
 	end
    end
-      if key == "3" then
+   end
+    if key == "3" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
     client:send("create_cat",{"assassin",nearest_build},client)
+	else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+   select_priotiry=3
    else
     client:send("create_build","wall",client)
 		end
    end
-      if key == "4" then
+   end
+    if key == "4" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
       client:send("create_cat",{"shield",nearest_build},client)
-   
+   else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+   select_priotiry=4
    else
     client:send("create_build","tower",client)
 		end
    end
-      if key == "5" then
+   end
+    if key == "5" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
     client:send("create_cat",{"priest",nearest_build},client)
    else
@@ -386,6 +420,27 @@ function draw_chat()
 for i=1,#all_msg_in_chat,1 do
  love.graphics.print(all_msg_in_chat[i],0,(i-1)*20)
 end
+
+end
+function draw_negotiation_house_icons()
+start_y=nearest_build.y-50
+for i=1,4,1 do
+love.graphics.draw(main_sprite_icon,all_sprites_icons[i],nearest_build.x,start_y,0,4,4)
+love.graphics.print("" .. my_player.priority[i],nearest_build.x+20,start_y)
+if(select_priotiry==i) then
+love.graphics.print("Q",nearest_build.x-20,start_y)
+love.graphics.print("E",nearest_build.x+80,start_y)
+end
+start_y=start_y-20
+
+end
+love.graphics.print("Count cats:" .. (my_player.priority[1]+my_player.priority[2]+my_player.priority[3]+my_player.priority[4]),nearest_build.x,start_y)
+if(my_player.priority[1]+my_player.priority[2]+my_player.priority[3]+my_player.priority[4]~=my_player.count_cats_miner) then
+love.graphics.print({{1,0,0,1},"All cats:" .. my_player.count_cats_miner},nearest_build.x,start_y-20)
+else
+love.graphics.print("All cats:" .. my_player.count_cats_miner,nearest_build.x,start_y-20)
+end
+
 
 end
 function draw_home_icons()
@@ -459,6 +514,8 @@ if(nearest_build~=nil and nearest_build.type=="home") then
 draw_home_icons()
 elseif(nearest_build~=nil and nearest_build.type=="shop") then
 draw_shop_icons()
+elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+draw_negotiation_house_icons()
 end
 if(all_players~=nil)then
   for i=1,#all_players,1 do
