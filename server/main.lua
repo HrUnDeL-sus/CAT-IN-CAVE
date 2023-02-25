@@ -135,7 +135,8 @@ is_mirror=false,
 resources={0,0,0,0,10,10},
 priority={0,0,0,0},
 my_builds={},
-my_cats={}
+my_cats={},
+has_start_build=false
 }
 end
 function add_cat_in_scene(cat)
@@ -161,9 +162,9 @@ return i
 end
 end
 end
-function can_place_build_in_position(lx)
+function can_place_build_in_position(pl)
 for i=1,#all_build_in_scene,1 do
-if math.abs(all_build_in_scene[i].x-lx)<100 then
+if (math.abs(all_build_in_scene[i].x-pl.x)<100 and all_build_in_scene[i].uid_player==pl.uid) or (math.abs(all_build_in_scene[i].x-pl.x)<500 and all_build_in_scene[i].uid_player~=pl.uid)  then
 return false
 end
 end
@@ -287,7 +288,10 @@ end)
 server:on("create_build", function(ltype,lclient)
 
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if(can_place_build_in_position(lplayer.x) and can_buy_build(lclient,ltype)) then
+if can_place_build_in_position(lplayer) and can_buy_build(lclient,ltype) and((lplayer.has_start_build==false and ltype=="fortress") or (lplayer.has_start_build==true)) then
+if(lplayer.has_start_build==false) then
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].has_start_build=true
+end
 add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
 table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_builds,all_build_in_scene[#all_build_in_scene])
 server:sendToAll("builds",all_build_in_scene)

@@ -23,7 +23,7 @@ all_msg_in_chat={}
 tick=0
 nearest_build=nil
 all_cost=nil
-
+has_house=false
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -368,6 +368,7 @@ else
 	 else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
    select_priotiry=2
    else
+   has_house=true
     client:send("create_build","fortress",client)
 	end
    end
@@ -462,14 +463,19 @@ end
 function draw_shop_builds()
 if(all_cost~=nil) then
 x=1
+
 names={"home","fortress","wall","tower","negotiation_house"}
+
 for i=1,#names,1 do
+if(has_house==true) or (has_house==false and names[i]=="fortress") then
 love.graphics.draw(main_sprite_build,all_sprites_build[names[i].."1"],90+(x*50),0,0,2,2)
 q=0
-for i=1,#all_cost[names[i]][1],1 do
-if(all_cost[names[i]][1][i]~=0) then
-love.graphics.draw(main_sprite_icon,all_sprites_icons[i],100+(x*50),70+(q*20),0,4,4)
-love.graphics.print(""..all_cost[names[i]][1][i],120+(x*50),70+(q*20))
+for s=1,#all_cost[names[i]][1],1 do
+if(all_cost[names[i]][1][s]~=0) then
+love.graphics.draw(main_sprite_icon,all_sprites_icons[s],100+(x*50),70+(q*20),0,4,4)
+
+love.graphics.print(""..all_cost[names[i]][1][s],120+(x*50),70+(q*20))
+
 q=q+1
 end
 end
@@ -477,6 +483,8 @@ x=x+1
 end
 end
 end
+end
+
 function draw_gui()
 
 draw_chat()
