@@ -136,6 +136,7 @@ resources={0,0,0,0,10,10},
 priority={0,0,0,0},
 my_builds={},
 my_cats={},
+relationship={},
 has_start_build=false
 }
 end
@@ -154,6 +155,13 @@ function random_string(length)
 		res = res .. string.char(math.random(97, 122)) .. math.random(0,9)
 	end
 	return res
+end
+function find_player_by_name(name)
+for i=1,#all_players_in_scene,1 do
+if(all_players_in_scene[i].name==name) then
+return i
+end
+end
 end
 function find_player_by_id(id)
 for i=1,#all_players_in_scene,1 do
@@ -212,6 +220,10 @@ function love.load()
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
+	server:on("update_relationship", function(lstate,is_friends,player_name,client)
+	pl1=all_players_in_scene[find_player_by_id(client:getConnectId())]
+	all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]={state=lstate,friend_request=is_friends}
+	end)
 	server:on("send_msg",function(msg,client)
 	
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
@@ -286,7 +298,7 @@ lclient:send("get_count_cats",count_miner_cats(all_players_in_scene[find_player_
 lclient:send("get_priority",all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority)
 end)
 server:on("create_build", function(ltype,lclient)
-
+print("TYPE:".. ltype)
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
 if can_place_build_in_position(lplayer) and can_buy_build(lclient,ltype) and((lplayer.has_start_build==false and ltype=="fortress") or (lplayer.has_start_build==true)) then
 if(lplayer.has_start_build==false) then

@@ -19,6 +19,8 @@ all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","
 chat_is_active=false
 text_for_chat=""
 select_priotiry=1
+select_title=1
+select_relationship=1
 all_msg_in_chat={}
 tick=0
 nearest_build=nil
@@ -100,7 +102,8 @@ is_mirror=lis_mirror,
 resources={0,0,0,0,10,10},
 priority={80,0,0,0},
 uid=-1,
-count_cats_miner=0
+count_cats_miner=0,
+relationship={}
 }
 
 end
@@ -118,6 +121,9 @@ main_sprite_icon:setFilter("linear", "nearest")
 for i=1,14,1 do
 all_sprites_icons[i]=love.graphics.newQuad(4*(i-1),0,4,4,main_sprite_icon)
 
+end
+for i=14,21,1 do
+all_sprites_icons[i]=love.graphics.newQuad(8*(i-14),8,8,8,main_sprite_icon)
 end
 end
 function init_build_sprites()
@@ -343,57 +349,69 @@ text_for_chat=text_for_chat .. key
 end
 else
     if key == "1" then
-   if(nearest_build~=nil and nearest_build.type=="home") then   print("IS NIL:",client==nil)
+   if(nearest_build~=nil and nearest_build.type=="home") then
    client:send("create_cat",{"archer",nearest_build},client)
-   else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+   elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=1
+   elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") and (#all_players>0) then
+   select_relationship=1
    else
     client:send("create_build","home",client)
 	end
    end
-   end
-    if(nearest_build~=nil and nearest_build.type=="negotiation_house" and key=="q") then
+
+    if(nearest_build~=nil and nearest_build.type=="fortress" and key=="q") then
 	if(my_player.priority[select_priotiry]-1>=0)then
 	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]-1
 	client:send("send_priority",my_player.priority,client)
 	end
 	end
-	    if(nearest_build~=nil and nearest_build.type=="negotiation_house" and key=="e") then
+	if(nearest_build~=nil and nearest_build.type=="negotiation_house" and key=="q") and (select_title>1) then
+   select_title=select_title-1
+   end
+   if(nearest_build~=nil and nearest_build.type=="negotiation_house" and key=="e") and (((select_title+1)*4)-#all_players>0) then
+   select_title=select_title+1
+   end
+	    if(nearest_build~=nil and nearest_build.type=="fortress" and key=="e") then
 	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]+1
 	client:send("send_priority",my_player.priority,client)
 	end
     if key == "2" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
 	 client:send("create_cat",{"sword",nearest_build},client)
-	 else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+	 elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=2
+   elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") and (#all_players>1) then
+   select_relationship=2
    else
    has_house=true
     client:send("create_build","fortress",client)
 	end
-   end
-   end
+	end
     if key == "3" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
     client:send("create_cat",{"assassin",nearest_build},client)
-	else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+	elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=3
+    elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") and (#all_players>2) then
+   select_relationship=3
    else
     client:send("create_build","wall",client)
 		end
    end
-   end
     if key == "4" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
       client:send("create_cat",{"shield",nearest_build},client)
-   else if(nearest_build~=nil and nearest_build.type=="negotiation_house") then
+   elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=4
+   elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") and (#all_players>3) then
+   select_relationship=4
    else
     client:send("create_build","tower",client)
 		end
    end
-   end
     if key == "5" then
+	print("KEY")
 	     if(nearest_build~=nil and nearest_build.type=="home") then
     client:send("create_cat",{"priest",nearest_build},client)
    else
@@ -405,6 +423,7 @@ else
 	  client:send("create_cat",{"woodcutter",nearest_build},client)	end
    end
 end
+
 function draw_builds()
 for i=1,#all_builds,1 do
 love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type..all_builds[i].lvl],all_builds[i].x,all_builds[i].y,0,4,4)
@@ -424,6 +443,45 @@ end
 
 end
 function draw_negotiation_house_icons()
+start_y=nearest_build.y-50
+start_x=nearest_build.x-35
+start_i=((select_title-1)*4)+1
+index=start_i
+for i=start_i,(select_title*4),1 do
+
+if(all_players[i]~=nil) then
+if(select_relationship+(((select_title-1)*4))==index) then
+if(all_players[i].name==my_player.name) then
+love.graphics.print({{1,0,0,1},"YOU"},start_x,start_y)
+else
+love.graphics.print({{1,0,0,1},""..all_players[i].name},start_x,start_y)
+end
+else
+if(all_players[i].name==my_player.name) then
+love.graphics.print("YOU",start_x,start_y)
+else
+love.graphics.print(""..all_players[i].name,start_x,start_y)
+end
+
+end
+if(all_players[i].name~=my_player.name) then
+if(my_player.relationship[all_players[i].name]~=nil and my_player.relationship[all_players[i].name]~=1) or (my_player.relationship[all_players[i].name]==nil) then
+start_x=start_x+40
+love.graphics.draw(main_sprite_icon,all_sprites_icons[17],start_x,start_y,0,3,3)
+end
+start_x=start_x+40
+love.graphics.draw(main_sprite_icon,all_sprites_icons[18],start_x,start_y,0,3,3)
+start_x=start_x+40
+love.graphics.draw(main_sprite_icon,all_sprites_icons[16],start_x,start_y,0,3,3)
+start_x=nearest_build.x-35
+end
+start_y=start_y-30
+index=index+1
+
+end
+end
+end
+function draw_fortress_icons()
 start_y=nearest_build.y-50
 for i=1,4,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],nearest_build.x,start_y,0,4,4)
@@ -497,7 +555,7 @@ if(chat_is_active==true) then
 	end
 	 love.graphics.print("X:" .. my_player.x,300,430)
 	  love.graphics.print("State:" .. client:getState(),450,0)
-	    love.graphics.print("Packets:" .. client:getTotalSentPackets(),450,20)
+	    love.graphics.print("Packets:" .. client:getTotalSentPackets() .. " " ..client:getTotalReceivedPackets(),450,20)
 		love.graphics.print("Ping:" ..client:getRoundTripTime(),450,40)
 		love.graphics.print("Players count:" ..#all_players,450,60)
 endfunction draw_cats()for i=1,#all_cats,1 do
@@ -522,6 +580,8 @@ if(nearest_build~=nil and nearest_build.type=="home") then
 draw_home_icons()
 elseif(nearest_build~=nil and nearest_build.type=="shop") then
 draw_shop_icons()
+elseif(nearest_build~=nil and nearest_build.type=="fortress") then
+draw_fortress_icons()
 elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") then
 draw_negotiation_house_icons()
 end
