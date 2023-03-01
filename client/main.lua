@@ -123,7 +123,7 @@ for i=1,14,1 do
 all_sprites_icons[i]=love.graphics.newQuad(4*(i-1),0,4,4,main_sprite_icon)
 
 end
-for i=14,21,1 do
+for i=14,23,1 do
 all_sprites_icons[i]=love.graphics.newQuad(8*(i-14),8,8,8,main_sprite_icon)
 end
 end
@@ -380,7 +380,17 @@ else
 
     if(nearest_build~=nil and nearest_build.type=="fortress" and key=="q") then
 	if(my_player.priority[select_priotiry]-1>=0)then
+	if(select_priotiry<5) then
 	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]-1
+	else
+		my_player.priority[select_priotiry]=my_player.priority[select_priotiry]-10
+	if(select_priotiry==5) then
+	my_player.priority[6]=my_player.priority[6]+10
+	else
+	my_player.priority[5]=my_player.priority[5]+10
+	end
+	
+	end
 	client:send("send_priority",my_player.priority,client)
 	end
 	end
@@ -391,7 +401,18 @@ else
    select_title=select_title+1
    end
 	    if(nearest_build~=nil and nearest_build.type=="fortress" and key=="e") then
+	if(select_priotiry<5) then
 	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]+1
+	else
+	my_player.priority[select_priotiry]=my_player.priority[select_priotiry]+10
+	if(select_priotiry==5) then
+	
+	my_player.priority[6]=my_player.priority[6]-10
+	else
+	my_player.priority[5]=my_player.priority[5]-10
+	end
+	
+	end
 	client:send("send_priority",my_player.priority,client)
 	end
     if key == "2" then
@@ -432,12 +453,17 @@ else
 	print("KEY")
 	     if(nearest_build~=nil and nearest_build.type=="home") then
     client:send("create_cat",{"priest",nearest_build},client)
+	 elseif(nearest_build~=nil and nearest_build.type=="fortress") then
+   select_priotiry=5
    else
     client:send("create_build","negotiation_house",client)
 		end
    end
 	if key=="6" and nearest_build~=nil and nearest_build.type=="home" then
-	  client:send("create_cat",{"miner",nearest_build},client)	end	if key=="7" and nearest_build~=nil and nearest_build.type=="home" then
+	  client:send("create_cat",{"miner",nearest_build},client)	end
+	if  key=="6" and (nearest_build~=nil and nearest_build.type=="fortress") then
+   select_priotiry=6
+   end	if key=="7" and nearest_build~=nil and nearest_build.type=="home" then
 	  client:send("create_cat",{"woodcutter",nearest_build},client)	end
    end
 end
@@ -513,8 +539,12 @@ end
 end
 function draw_fortress_icons()
 start_y=nearest_build.y-50
-for i=1,4,1 do
+for i=1,6,1 do
+if(i<5) then
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],nearest_build.x,start_y,0,4,4)
+else
+love.graphics.draw(main_sprite_icon,all_sprites_icons[i+16],nearest_build.x,start_y,0,2,2)
+end
 love.graphics.print("" .. my_player.priority[i],nearest_build.x+20,start_y)
 if(select_priotiry==i) then
 love.graphics.print("Q",nearest_build.x-20,start_y)
@@ -631,6 +661,7 @@ draw_gui()
 end
 
 function love.update(dt)
+
 tick=tick+dt
 client:update()
 nearest_build=find_nearest_build()

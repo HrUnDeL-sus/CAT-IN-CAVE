@@ -92,6 +92,11 @@ max_amount_resources=2,
 resource_build=nil,
 type_miner=1
 }
+elseif ltype=="sword" or ltype=="archer" then
+table_res={
+front_is_left=true
+}
+
 else
 end
 setmetatable(table_res,{__index=main_table})
@@ -120,6 +125,7 @@ y=ly,
 uid_player=player_uid,
 uid=random_string(11),
 lvl=1,
+hp=100,
 type=ltype
 }
 end
@@ -133,7 +139,7 @@ connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
 resources={0,0,0,0,10,10},
-priority={0,0,0,0},
+priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
 relationship={},
@@ -187,6 +193,15 @@ x=x+math.random(10,200)
 end
 
 end
+function get_all_cat_defend(pl)
+dfnd_cat={}
+for i=1,#pl.my_cats,1 do
+if(pl.my_cats[i].type=="archer" or pl.my_cats[i].type=="sword") then
+table.insert(dfnd_cat,pl.my_cats[i])
+end
+end
+return dfnd_cat
+end
 function get_all_cat_miner(pl)
 minr_cat={}
 for i=1,#pl.my_cats,1 do
@@ -195,6 +210,24 @@ table.insert(minr_cat,pl.my_cats[i])
 end
 end
 return minr_cat
+end
+function distribute_cats_defend(pl)
+all_cats_defend=get_all_cat_defend(pl)
+count=#all_cats_defend
+left_cats_count_max=math.floor(math.abs((pl.priority[5]*count) / 100))
+righ_cats_count_max=count-left_cats_count_max
+print("ALL:" .. count .. "LEFT:" .. left_cats_count_max .. " RIGHT:" .. righ_cats_count_max)
+left_cats_count=0
+righ_cats_count=0
+for i=1,#all_cats_defend,1 do
+if left_cats_count<left_cats_count_max then
+all_cats_defend[i].front_is_left=true
+left_cats_count=left_cats_count+1
+else
+all_cats_defend[i].front_is_left=false
+end
+
+end
 end
 function distribute_cats(pl)
 index_cat=1
@@ -296,8 +329,9 @@ function love.load()
 		
 end)
 server:on("send_priority", function(priority,lclient)
-if(priority[1]+priority[2]+priority[3]+priority[4]<=count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())])) then
+if(priority[1]+priority[2]+priority[3]+priority[4]<=count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())])) and priority[5]+priority[6]==100 and priority[5]>=0 and priority[6]>=0 then
 all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority=priority
+distribute_cats_defend(all_players_in_scene[find_player_by_id(lclient:getConnectId())])
 if(priority[1]+priority[2]+priority[3]+priority[4]==count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())])) then
 distribute_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())])
 end
@@ -314,6 +348,7 @@ if(ltype=="miner") then
 all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority[1]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority[1]+1
 end
 table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats,all_cats_in_scene[#all_cats_in_scene])
+distribute_cats_defend(lplayer)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[#all_cats_in_scene]))
 lclient:send("get_count_cats",count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())]))
 lclient:send("get_priority",all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority)
@@ -401,6 +436,24 @@ end
 end
 return id
 end
+function find_unnearest_build(start_pos,builds,ltype,is_left)
+bld=nil
+distance=0
+for i=1,#builds,1 do
+
+if builds[i].type==ltype then
+if(is_left==true) and math.abs(builds[i].x-start_pos)>distance and builds[i].x<start_pos then
+bld=builds[i]
+distance=bld.x
+elseif (is_left==false) and math.abs(builds[i].x-start_pos)>distance and builds[i].x>start_pos then
+bld=builds[i]
+distance=bld.x
+else
+end
+end
+end
+return bld
+end 
 function find_build(builds,ltype)
 for i=1,#builds,1 do
 if builds[i].type==ltype then
@@ -432,7 +485,7 @@ else
 return false
 end
 end
-function active_woodcutter_and_miner_ii(cat)
+function active_woodcutter_and_miner_ai(cat)
 id=-1
 if(cat.anim~="stand2" and cat.anim ~="run2")  then
 	if cat.type=="miner" then
@@ -497,9 +550,24 @@ else
 end
 end
 end
+function active_archer_and_sword_ai(cat)
+pl=find_player_by_uid(cat.uid_player)
 
+if(pl~=nil) then
+nearest_build=find_unnearest_build(cat.x,pl.my_builds,"wall",cat.front_is_left)
 
-
+if(nearest_build~=nil) then
+if (math.abs(nearest_build.x-cat.x)<100) and cat.anim~="stand" then
+cat.anim="stand"
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+else 
+cat.anim="run"
+move_cat(cat,nearest_build.x)
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+end
+end
+end
 function find_player_by_uid(uid)
 for i=1,#all_players_in_scene,1 do
 if(all_players_in_scene[i].uid==uid) then
@@ -508,11 +576,14 @@ end
 end
 return nil
 end
-function active_cat_ii()
+function active_cat_ai()
 for i=1,#all_cats_in_scene,1 do
 
 if all_cats_in_scene[i].type=="miner" or all_cats_in_scene[i].type=="woodcutter" then
-active_woodcutter_and_miner_ii(all_cats_in_scene[i])
+active_woodcutter_and_miner_ai(all_cats_in_scene[i])
+elseif all_cats_in_scene[i].type=="archer" or all_cats_in_scene[i].type=="sword" then
+active_archer_and_sword_ai( all_cats_in_scene[i])
+else
 end
 --server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))
 
@@ -523,7 +594,7 @@ function love.update(dt)
 local result, err =pcall(local_update_server)
 tick=tick+dt
 if(tick>1/20) then
-active_cat_ii()
+active_cat_ai()
 tick=0
 end
 if err~=nil then
