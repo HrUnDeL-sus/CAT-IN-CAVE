@@ -21,6 +21,7 @@ text_for_chat=""
 select_priotiry=1
 select_title=1
 select_relationship=1
+select_relationship_player=-1
 all_msg_in_chat={}
 tick=0
 nearest_build=nil
@@ -222,6 +223,10 @@ function init_client_requests()
 client:on("get_priority",function(prior)
 my_player.priority=prior
 end)
+client:on("get_relationship", function(lrelationship)
+
+my_player.relationship=lrelationship
+end)
 client:on("get_count_cats",function(count)
 my_player.count_cats_miner=count
 
@@ -348,6 +353,19 @@ elseif string.len(key)<2 then
 text_for_chat=text_for_chat .. key
 end
 else
+	if (key=="r" or key=="t") and nearest_build~=nil and nearest_build.type=="negotiation_house" then
+		if my_player.relationship[select_relationship_player] ~=nil and (my_player.relationship[select_relationship_player].friend_request==true) then
+		if(key=="r") then
+		client:send("update_relationship",{0,"cancel",select_relationship_player,my_player.name})
+		else
+		client:send("update_relationship",{0,"accept",select_relationship_player,my_player.name})
+		end
+		else
+				if(key=="r") then
+		client:send("update_relationship",{0,true,select_relationship_player,my_player.name})
+		end
+		end
+	end
     if key == "1" then
    if(nearest_build~=nil and nearest_build.type=="home") then
    client:send("create_cat",{"archer",nearest_build},client)
@@ -455,6 +473,7 @@ if(all_players[i].name==my_player.name) then
 love.graphics.print({{1,0,0,1},"YOU"},start_x,start_y)
 else
 love.graphics.print({{1,0,0,1},""..all_players[i].name},start_x,start_y)
+select_relationship_player=all_players[i].name
 end
 else
 if(all_players[i].name==my_player.name) then
@@ -465,15 +484,26 @@ end
 
 end
 if(all_players[i].name~=my_player.name) then
-if(my_player.relationship[all_players[i].name]~=nil and my_player.relationship[all_players[i].name]~=1) or (my_player.relationship[all_players[i].name]==nil) then
+if(my_player.relationship[all_players[i].name]==nil or my_player.relationship[all_players[i].name].friend_request==false) then
+--if(my_player.relationship[all_players[i].name]~=nil and my_player.relationship[all_players[i].name].state==0) or (my_player.relationship[all_players[i].name]==nil) then
 start_x=start_x+40
 love.graphics.draw(main_sprite_icon,all_sprites_icons[17],start_x,start_y,0,3,3)
-end
+--end
 start_x=start_x+40
 love.graphics.draw(main_sprite_icon,all_sprites_icons[18],start_x,start_y,0,3,3)
 start_x=start_x+40
+if(my_player.relationship[all_players[i].name]~=nil) then
+love.graphics.draw(main_sprite_icon,all_sprites_icons[16-my_player.relationship[all_players[i].name].state],start_x,start_y,0,3,3)
+else
 love.graphics.draw(main_sprite_icon,all_sprites_icons[16],start_x,start_y,0,3,3)
+end
 start_x=nearest_build.x-35
+else
+start_x=start_x+40
+love.graphics.draw(main_sprite_icon,all_sprites_icons[20],start_x,start_y,0,3,3)
+start_x=start_x+40
+love.graphics.draw(main_sprite_icon,all_sprites_icons[19],start_x,start_y,0,3,3)
+end
 end
 start_y=start_y-30
 index=index+1

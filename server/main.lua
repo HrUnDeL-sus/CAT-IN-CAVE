@@ -162,6 +162,7 @@ if(all_players_in_scene[i].name==name) then
 return i
 end
 end
+return -1
 end
 function find_player_by_id(id)
 for i=1,#all_players_in_scene,1 do
@@ -220,10 +221,30 @@ function love.load()
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
-	server:on("update_relationship", function(lstate,is_friends,player_name,client)
-	pl1=all_players_in_scene[find_player_by_id(client:getConnectId())]
+	server:on("update_relationship", function(data)
+	lstate=data[1]
+	is_friends=data[2]
+	player_name=data[3]
+	player_name2=data[4]
+	pl1=all_players_in_scene[find_player_by_name(player_name2)]
+	pl2=all_players_in_scene[find_player_by_name(player_name)]
+	print("NIL" .. player_name .. " - " .. player_name2)
+	if(is_friends=="cancel") then
+	all_players_in_scene[find_player_by_name(player_name2)].relationship[pl2.name]={state=0,friend_request=false}
+	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name2)].relationship)
+	elseif(is_friends=="accept") then
+		all_players_in_scene[find_player_by_name(player_name2)].relationship[pl2.name]={state=1,friend_request=false}
+	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name2)].relationship)
+		all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]={state=1,friend_request=false}
+	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name)].relationship)
+
+	elseif((is_friends==true and all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]~=nil and all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name].state~=1) or (all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]==nil)) then
 	all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]={state=lstate,friend_request=is_friends}
-	end)
+	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name)].relationship)
+	else
+	
+	end
+		end)
 	server:on("send_msg",function(msg,client)
 	
 	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
