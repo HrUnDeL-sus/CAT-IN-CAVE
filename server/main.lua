@@ -92,6 +92,10 @@ max_amount_resources=2,
 resource_build=nil,
 type_miner=1
 }
+elseif ltype=="shield" or ltype=="priest" then
+table_res={
+target_player=nil
+}
 elseif ltype=="sword" or ltype=="archer" then
 table_res={
 front_is_left=true
@@ -118,9 +122,16 @@ is_mirror=cat.is_mirror
 }
 
 end
-function create_build(lx,ly,player_uid,ltype)
+function create_sheel(cat)
 return {
-x=lx,
+x=cat.x
+}
+end
+function create_build(lx,ly,player_uid,ltype)
+start_x=lx-50
+return {
+x=start_x,
+center_x=start_x+30,
 y=ly,
 uid_player=player_uid,
 uid=random_string(11),
@@ -216,7 +227,6 @@ all_cats_defend=get_all_cat_defend(pl)
 count=#all_cats_defend
 left_cats_count_max=math.floor(math.abs((pl.priority[5]*count) / 100))
 righ_cats_count_max=count-left_cats_count_max
-print("ALL:" .. count .. "LEFT:" .. left_cats_count_max .. " RIGHT:" .. righ_cats_count_max)
 left_cats_count=0
 righ_cats_count=0
 for i=1,#all_cats_defend,1 do
@@ -228,6 +238,15 @@ all_cats_defend[i].front_is_left=false
 end
 
 end
+end
+function distribute_cats_attack(pl,target)
+for i=1,#pl.my_cats,1 do
+if(pl.my_cats[i].type=="shield" or pl.my_cats[i].type=="priest") and pl.my_cats[i].target_player==nil then
+all_players_in_scene[find_player_by_name(pl.name)].my_cats[i].target_player=target
+print("UES")
+end
+end
+
 end
 function distribute_cats(pl)
 index_cat=1
@@ -250,37 +269,59 @@ end
 end
 
 end
+function send_msg_to_all(msg)
+server:sendToAll("get_message",msg)
+end
 function love.load()
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
-	server:on("update_relationship", function(data)
-	lstate=data[1]
-	is_friends=data[2]
-	player_name=data[3]
-	player_name2=data[4]
-	pl1=all_players_in_scene[find_player_by_name(player_name2)]
-	pl2=all_players_in_scene[find_player_by_name(player_name)]
-	print("NIL" .. player_name .. " - " .. player_name2)
-	if(is_friends=="cancel") then
-	all_players_in_scene[find_player_by_name(player_name2)].relationship[pl2.name]={state=0,friend_request=false}
+		server:on("send_friend_request", function(data)
+		player_name=data[1]
+		player_name2=data[2]
+	pl1=all_players_in_scene[find_player_by_name(player_name)]
+	pl2=all_players_in_scene[find_player_by_name(player_name2)]
+	all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={state=0,friend_request=true}
 	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name2)].relationship)
-	elseif(is_friends=="accept") then
-		all_players_in_scene[find_player_by_name(player_name2)].relationship[pl2.name]={state=1,friend_request=false}
+	end)
+	server:on("attack_player_request", function(data)
+		player_name=data[1]
+		player_name2=data[2]
+	send_msg_to_all(player_name .. " attack " .. player_name2 .. "!!!")
+	
+
+	pl1=all_players_in_scene[find_player_by_name(player_name)]
+	pl2=all_players_in_scene[find_player_by_name(player_name2)]
+	distribute_cats_attack(pl1,pl2)
+all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={state=0,friend_request=false}
 	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name2)].relationship)
-		all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]={state=1,friend_request=false}
+		all_players_in_scene[find_player_by_name(player_name)].relationship[pl2.name]={state=0,friend_request=false}
 	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name)].relationship)
 
-	elseif((is_friends==true and all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]~=nil and all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name].state~=1) or (all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]==nil)) then
-	all_players_in_scene[find_player_by_name(player_name)].relationship[pl1.name]={state=lstate,friend_request=is_friends}
-	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name)].relationship)
-	else
-	
+	end)
+	server:on("update_friend_request", function(data)
+	player_name=data[1]
+	player_name2=data[2]
+	is_accept=data[3]
+	if(all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]~=nil and all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name].state==1) then
+	return
 	end
-		end)
-	server:on("send_msg",function(msg,client)
+	pl1=all_players_in_scene[find_player_by_name(player_name)]
+	pl2=all_players_in_scene[find_player_by_name(player_name2)]
+	l_state=1
+	if(is_accept==false) then
+	l_state=0
+	else
+	send_msg_to_all(player_name .. " and " .. player_name2 .. " friends now!!!")
+	end
+	all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={state=l_state,friend_request=false}
+	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name2)].relationship)
+		all_players_in_scene[find_player_by_name(player_name)].relationship[pl2.name]={state=l_state,friend_request=false}
+	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name)].relationship)
+	end)
 	
-	server:sendToAll("get_message",all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
+	server:on("send_msg",function(msg,client)
+	send_msg_to_all(all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
 	end)
 	server:on("get_player_server", function (player,client)
 	if(player.is_mirror==nil) then
@@ -356,7 +397,7 @@ end)
 server:on("create_build", function(ltype,lclient)
 print("TYPE:".. ltype)
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if can_place_build_in_position(lplayer) and can_buy_build(lclient,ltype) and((lplayer.has_start_build==false and ltype=="fortress") or (lplayer.has_start_build==true)) then
+if can_place_build_in_position(lplayer) and ((lplayer.has_start_build==false and ltype=="fortress") or (lplayer.has_start_build==true and ltype~="fortress")) and can_buy_build(lclient,ltype)  then
 if(lplayer.has_start_build==false) then
 all_players_in_scene[find_player_by_id(lclient:getConnectId())].has_start_build=true
 end
@@ -437,20 +478,25 @@ end
 return id
 end
 function find_unnearest_build(start_pos,builds,ltype,is_left)
+start_build=find_build(builds,"fortress")
 bld=nil
 distance=0
+if(start_build~=nil) then
 for i=1,#builds,1 do
 
 if builds[i].type==ltype then
-if(is_left==true) and math.abs(builds[i].x-start_pos)>distance and builds[i].x<start_pos then
+if(is_left==true) and start_build.x-builds[i].x>distance  then
 bld=builds[i]
-distance=bld.x
-elseif (is_left==false) and math.abs(builds[i].x-start_pos)>distance and builds[i].x>start_pos then
+distance=start_build.x-builds[i].x
+elseif (is_left==false) and  builds[i].x-start_build.x>distance  then
 bld=builds[i]
-distance=bld.x
+distance=builds[i].x-start_build.x
 else
 end
 end
+end
+else
+print("DW")
 end
 return bld
 end 
@@ -557,13 +603,30 @@ if(pl~=nil) then
 nearest_build=find_unnearest_build(cat.x,pl.my_builds,"wall",cat.front_is_left)
 
 if(nearest_build~=nil) then
-if (math.abs(nearest_build.x-cat.x)<100) and cat.anim~="stand" then
+distance=0
+new_pos=0
+min_distance=20
+if(cat.front_is_left) then
+new_pos=nearest_build.x+120
+distance=cat.x-new_pos
+else
+new_pos=nearest_build.x-20
+distance=new_pos-cat.x
+end
+
+
+if distance <=min_distance and distance>0  and cat.anim~="stand" then
+cat.is_mirror=cat.front_is_left
+
 cat.anim="stand"
+
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
-else 
+elseif distance>min_distance or distance<0  then
+print("DIST:" ..cat.x.. " " .. distance .. " " ..new_pos .. " " .. min_distance)
 cat.anim="run"
-move_cat(cat,nearest_build.x)
+move_cat(cat,new_pos)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+else
 end
 end
 end
@@ -576,6 +639,33 @@ end
 end
 return nil
 end
+function active_shield_and_priest_ai(cat)
+if(cat.target_player~=nil) then
+
+bld=find_build(cat.target_player.my_builds,"fortress")
+if math.abs(cat.x-bld.x)<20 then
+	cat.target_player=nil
+else
+cat.anim="run"
+move_cat(cat,bld.x)
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+else
+pl=find_player_by_uid(cat.uid_player)
+if(pl~=nil) then
+bld=find_build(pl.my_builds,"fortress")
+if math.abs(cat.x-bld.x)<20 and cat.anim~="stand"  then
+	cat.anim="stand"
+	server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+elseif math.abs(cat.x-bld.x)>20 then
+cat.anim="run"
+move_cat(cat,bld.x)
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+else
+end
+end
+end
+end
 function active_cat_ai()
 for i=1,#all_cats_in_scene,1 do
 
@@ -583,6 +673,8 @@ if all_cats_in_scene[i].type=="miner" or all_cats_in_scene[i].type=="woodcutter"
 active_woodcutter_and_miner_ai(all_cats_in_scene[i])
 elseif all_cats_in_scene[i].type=="archer" or all_cats_in_scene[i].type=="sword" then
 active_archer_and_sword_ai( all_cats_in_scene[i])
+elseif  all_cats_in_scene[i].type=="shield" or all_cats_in_scene[i].type=="priest" then
+active_shield_and_priest_ai( all_cats_in_scene[i])
 else
 end
 --server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))

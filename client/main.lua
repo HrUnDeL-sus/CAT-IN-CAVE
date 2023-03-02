@@ -233,7 +233,7 @@ my_player.count_cats_miner=count
 end)
 client:on("get_message",function(msg)
 table.insert(all_msg_in_chat,msg)
-if(#all_msg_in_chat>5) then
+if(#all_msg_in_chat>10) then
 table.remove(all_msg_in_chat,1)
 end
 
@@ -356,13 +356,15 @@ else
 	if (key=="r" or key=="t") and nearest_build~=nil and nearest_build.type=="negotiation_house" then
 		if my_player.relationship[select_relationship_player] ~=nil and (my_player.relationship[select_relationship_player].friend_request==true) then
 		if(key=="r") then
-		client:send("update_relationship",{0,"cancel",select_relationship_player,my_player.name})
+		client:send("update_friend_request",{my_player.name,select_relationship_player,false})
 		else
-		client:send("update_relationship",{0,"accept",select_relationship_player,my_player.name})
+		client:send("update_friend_request",{my_player.name,select_relationship_player,true})
 		end
 		else
 				if(key=="r") then
-		client:send("update_relationship",{0,true,select_relationship_player,my_player.name})
+		client:send("send_friend_request",{my_player.name,select_relationship_player})
+		else
+		client:send("attack_player_request",{my_player.name,select_relationship_player})
 		end
 		end
 	end
@@ -564,7 +566,7 @@ end
 end
 function draw_home_icons()
 start_x=nearest_build.x-35
-for i=8,13,1 do
+for i=7,13,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
 start_x=start_x+35
 end
