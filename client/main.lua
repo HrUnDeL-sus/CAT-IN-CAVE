@@ -9,7 +9,9 @@ cat_woodcutter_animator={}
 cat_woodcutter_animator={}
 cat_priest_animator={}
 cat_shield_animator={}
+all_sprites_shells={}
 all_cats={}
+all_shells={}
 all_players={}
 all_builds={}cats_main_sprites={}
 all_vegetations={}
@@ -116,6 +118,13 @@ all_sprites_vegetation[i]=love.graphics.newQuad(8*(i-1),0,8,8,main_sprite_vegeta
 end
 
 end
+function init_shells()
+main_sprite_shell=love.graphics.newImage("shells.png")
+main_sprite_shell:setFilter("linear", "nearest")
+for i=1,3,1 do
+all_sprites_shells[i]=love.graphics.newQuad(4*(i-1),0,4,4,main_sprite_shell)
+end
+end
 function init_icons()
 main_sprite_icon=love.graphics.newImage("icons.png")
 main_sprite_icon:setFilter("linear", "nearest")
@@ -151,6 +160,8 @@ if (ltype=="archer") then
 add_animation(cat.animator,"attack",2,30)
 elseif(ltype=="sword") then
 add_animation(cat.animator,"attack",3,30)
+elseif(ltype=="priest") then
+add_animation(cat.animator,"attack",1,30)
 elseif(ltype=="woodcutter" or ltype=="miner") then
 add_animation(cat.animator,"work",3,30)
 	  add_animation(cat.animator,"stand2",2,40)
@@ -246,6 +257,9 @@ client:on("update_resources",function(res)
 
 my_player.resources=res
 end)client:on("update_cat",function(cat)add_cat_to_all_cats(cat)end)
+client:on("shells", function(lshells)
+all_shells=lshells
+end)
   client:on("builds",function(lbuilds)
 	  all_builds=lbuilds
 	  end)
@@ -283,6 +297,7 @@ function love.load()
 	cat_image:setFilter("linear", "nearest")
 	init_build_sprites()
 	init_icons()
+	init_shells()
 	init_cats()
 	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
@@ -473,6 +488,7 @@ end
 function draw_builds()
 for i=1,#all_builds,1 do
 love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type..all_builds[i].lvl],all_builds[i].x,all_builds[i].y,0,4,4)
+love.graphics.print("HP:" .. all_builds[i].hp,all_builds[i].x,all_builds[i].y+20)
 end
 
 end
@@ -620,6 +636,13 @@ if(chat_is_active==true) then
 	    love.graphics.print("Packets:" .. client:getTotalSentPackets() .. " " ..client:getTotalReceivedPackets(),450,20)
 		love.graphics.print("Ping:" ..client:getRoundTripTime(),450,40)
 		love.graphics.print("Players count:" ..#all_players,450,60)
+end
+function draw_shells()
+
+for i=1,#all_shells,1 do
+
+love.graphics.draw(main_sprite_shell,all_sprites_shells[all_shells[i].type], all_shells[i].x,all_shells[i].y,0,4,4)
+end
 endfunction draw_cats()for i=1,#all_cats,1 do
 if(all_cats[i].is_mirror==true) thendraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)
 else
@@ -636,8 +659,9 @@ cam:setPosition(my_player.x, 0)
 
 
 cam:draw(function(l,t,w,h)
-draw_builds()
 draw_vegetations()
+draw_builds()
+
 if(nearest_build~=nil and nearest_build.type=="home") then
 draw_home_icons()
 elseif(nearest_build~=nil and nearest_build.type=="shop") then
@@ -657,7 +681,9 @@ if(all_players~=nil)then
    end
 
    end
-   end   draw_cats()
+   end
+   draw_shells()   draw_cats()
+   
 end)
 draw_gui()
 end

@@ -4,9 +4,19 @@ local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
 all_vegetation_in_scene={}
+all_shells_in_scene={}
 tick=0
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
+function create_shell(cat,ltype,move)
+return {
+x=cat.x,
+y=cat.y+25,
+type=ltype,
+move_x=move
+}
+end
+
 function create_random_vegetation(lx)
 ly=520
 ltype=math.random(1,13)
@@ -94,9 +104,17 @@ type_miner=1
 }
 elseif ltype=="shield" or ltype=="priest" then
 table_res={
-target_player=nil
+target_player=nil,
+max_period=20,
+period=20
 }
-elseif ltype=="sword" or ltype=="archer" then
+elseif  ltype=="archer" then
+table_res={
+front_is_left=true,
+max_period=20,
+period=20
+}
+elseif ltype=="sword"  then
 table_res={
 front_is_left=true
 }
@@ -122,9 +140,13 @@ is_mirror=cat.is_mirror
 }
 
 end
-function create_sheel(cat)
+function create_sheel(cat,ltype,move)
 return {
-x=cat.x
+x=cat.x,
+y=cat.y,
+move_x=move,
+uid_player=cat.uid_player,
+type=ltype
 }
 end
 function create_build(lx,ly,player_uid,ltype)
@@ -273,6 +295,7 @@ function send_msg_to_all(msg)
 server:sendToAll("get_message",msg)
 end
 function love.load()
+math.randomseed(os.clock())
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22123)
@@ -460,6 +483,17 @@ function local_update_server()
 server:update()
 
 end
+function find_nearest_build(builds,x1,ltype)
+x3=1000000000
+id=nil
+for i=1,#builds,1 do
+if math.abs(builds[i].x-x1)<x3   and (builds[i].type==ltype or ltype==nil) then
+x3=math.abs(builds[i].x-x1)
+id=i
+end
+end
+return id
+end
 function find_nearest_vegetation(x1,ltypes)
 x3=1000000000
 id=nil
@@ -500,6 +534,14 @@ print("DW")
 end
 return bld
 end 
+function find_build_by_uid(builds,uid)
+for i=1,#builds,1 do
+if builds[i].uid==uid then
+return i
+end
+end
+return nil
+end
 function find_build(builds,ltype)
 for i=1,#builds,1 do
 if builds[i].type==ltype then
@@ -622,7 +664,7 @@ cat.anim="stand"
 
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 elseif distance>min_distance or distance<0  then
-print("DIST:" ..cat.x.. " " .. distance .. " " ..new_pos .. " " .. min_distance)
+
 cat.anim="run"
 move_cat(cat,new_pos)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
@@ -639,17 +681,59 @@ end
 end
 return nil
 end
+function remove_build(build_id)
+table.remove(all_build_in_scene,build_id)
+end
+function damage_build(build,dmg)
+id_build=find_build_by_uid(all_build_in_scene,build.uid)
+if(id_build~=nil) then
+all_build_in_scene[id_build].hp=all_build_in_scene[id_build].hp-dmg
+if(all_build_in_scene[id_build].hp<=0) then
+remove_build(id_build)
+end
+server:sendToAll("builds",all_build_in_scene)
+end
+end
 function active_shield_and_priest_ai(cat)
 if(cat.target_player~=nil) then
 
 bld=find_build(cat.target_player.my_builds,"fortress")
-if math.abs(cat.x-bld.x)<20 then
+bld_nearest_id=find_nearest_build(cat.target_player.my_builds,cat.x,nil)
+bld_nearest=nil
+if(bld_nearest_id~=nil) then
+bld_nearest=cat.target_player.my_builds[bld_nearest_id]
+end
+if bld_nearest~=nil and bld_nearest.type~="fortress" then
+
+if math.abs(cat.x-bld_nearest.x)<150 then
+if(cat.anim~="attack") then
+cat.anim="attack"
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+move_x=10
+if(cat.x>bld_nearest.x) then
+move_x=-10
+end
+if(cat.period>=cat.max_period) then
+table.insert(all_shells_in_scene,create_sheel(cat,2,move_x))
+cat.period=0
+end
+cat.period=cat.period+0.2
+
+else
+cat.anim="run"
+move_cat(cat,bld.x)
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+elseif math.abs(cat.x-bld.x)<20 then
 	cat.target_player=nil
 else
 cat.anim="run"
 move_cat(cat,bld.x)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 end
+
+
 else
 pl=find_player_by_uid(cat.uid_player)
 if(pl~=nil) then
@@ -663,6 +747,23 @@ move_cat(cat,bld.x)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 else
 end
+end
+end
+end
+function remove_shell(id)
+table.remove(all_shells_in_scene,id)
+end
+function move_shells()
+for i=1,#all_shells_in_scene,1 do
+if(all_shells_in_scene[i]~=nil) then
+print("D:".. all_shells_in_scene[i].move_x)
+all_shells_in_scene[i].x=all_shells_in_scene[i].x+all_shells_in_scene[i].move_x
+id_bld=find_nearest_build(all_build_in_scene,all_shells_in_scene[i].x,nil)
+if(id_bld~=nil and math.abs(all_build_in_scene[id_bld].x-all_shells_in_scene[i].x)<20) and all_build_in_scene[id_bld].uid_player~=all_shells_in_scene[i].uid_player then
+damage_build(all_build_in_scene[id_bld],2)
+remove_shell(i)
+end
+server:sendToAll("shells",all_shells_in_scene)
 end
 end
 end
@@ -683,10 +784,12 @@ end
 
 end
 function love.update(dt)
+
 local result, err =pcall(local_update_server)
 tick=tick+dt
 if(tick>1/20) then
 active_cat_ai()
+move_shells()
 tick=0
 end
 if err~=nil then
