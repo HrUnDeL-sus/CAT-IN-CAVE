@@ -8,14 +8,7 @@ all_shells_in_scene={}
 tick=0
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
-function create_shell(cat,ltype,move)
-return {
-x=cat.x,
-y=cat.y+25,
-type=ltype,
-move_x=move
-}
-end
+
 
 function create_random_vegetation(lx)
 ly=520
@@ -80,6 +73,7 @@ function create_cat(lx,ly,player_uid,type)
 main_table={
 x=lx,
 y=ly,
+hp=100,
 uid_player=player_uid,
 uid=random_string(13),
 lvl=1,
@@ -134,7 +128,8 @@ lvl=cat.lvl,
 type=cat.type,
 animator=nil,
 anim=cat.anim,
-is_mirror=cat.is_mirror
+is_mirror=cat.is_mirror,
+hp=cat.hp
 
 
 }
@@ -145,7 +140,7 @@ return {
 x=cat.x,
 y=cat.y,
 move_x=move,
-uid_player=cat.uid_player,
+target_player=cat.target_player,
 type=ltype
 }
 end
@@ -553,11 +548,11 @@ end
 function move_cat(cat,x)
 if(cat.x<x) then
 cat.is_mirror=false
-cat.x=cat.x+5
+cat.x=cat.x+5+math.random(0,2)
 else
 
 cat.is_mirror=true
-cat.x=cat.x-5
+cat.x=cat.x-5-math.random(0,2)
 end
 
 end
@@ -682,6 +677,14 @@ end
 return nil
 end
 function remove_build(build_id)
+for i=1,#all_players_in_scene, 1 do
+for q=1, #all_players_in_scene[i].my_builds,1 do
+if(all_players_in_scene[i].my_builds[q].uid==all_build_in_scene[build_id].uid) then
+table.remove(all_players_in_scene[i].my_builds,q)
+break
+end
+end
+end
 table.remove(all_build_in_scene,build_id)
 end
 function damage_build(build,dmg)
@@ -703,11 +706,19 @@ bld_nearest=nil
 if(bld_nearest_id~=nil) then
 bld_nearest=cat.target_player.my_builds[bld_nearest_id]
 end
-if bld_nearest~=nil and bld_nearest.type~="fortress" then
+if bld_nearest~=nil then
+if  math.abs(cat.x-bld_nearest.x)<200 and cat.type=="shield" then
+if(cat.anim~="stand") then
+cat.anim="stand"
 
-if math.abs(cat.x-bld_nearest.x)<150 then
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+
+elseif math.abs(cat.x-bld_nearest.x)<300  and cat.type=="priest" then
+
 if(cat.anim~="attack") then
 cat.anim="attack"
+
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 end
 move_x=10
@@ -715,6 +726,7 @@ if(cat.x>bld_nearest.x) then
 move_x=-10
 end
 if(cat.period>=cat.max_period) then
+
 table.insert(all_shells_in_scene,create_sheel(cat,2,move_x))
 cat.period=0
 end
@@ -753,15 +765,59 @@ end
 function remove_shell(id)
 table.remove(all_shells_in_scene,id)
 end
+function remove_cat(cat)
+for i=1,#all_players_in_scene,1 do
+pl=all_players_in_scene[i]
+for q=1,#pl.my_cats,1 do
+if(cat.uid==all_players_in_scene[i].my_cats[q].uid) then
+table.remove(all_players_in_scene[i].my_cats,q)
+end
+end
+end
+for i=1,#all_players_in_scene,1 do
+if(cat.uid==all_players_in_scene[i].uid) then
+table.remove(all_players_in_scene[i].my_cats,i)
+end
+
+end
+end
+function damage_cat(cat,dmg)
+for i=1,#all_cats_in_scene,1 do
+if(cat.uid==all_cats_in_scene[i].uid) then
+cat.hp=cat.hp-dmg
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+if(cat.hp<=0) then
+remove_cat(cat)
+end
+end
+end
+end
+function find_nearest_cat(cats,x)
+distance=100000000
+ret_cat=nil
+for i=1,#cats,1 do
+if (math.abs(cats[i].x-x)<distance) then
+ret_cat=cats[i]
+distance=math.abs(cats[i].x-x)
+end
+end
+return ret_cat
+end
 function move_shells()
 for i=1,#all_shells_in_scene,1 do
 if(all_shells_in_scene[i]~=nil) then
 print("D:".. all_shells_in_scene[i].move_x)
 all_shells_in_scene[i].x=all_shells_in_scene[i].x+all_shells_in_scene[i].move_x
+nearest_cat=find_nearest_cat(all_shells_in_scene[i].target_player.my_cats,all_shells_in_scene[i].x)
+
 id_bld=find_nearest_build(all_build_in_scene,all_shells_in_scene[i].x,nil)
-if(id_bld~=nil and math.abs(all_build_in_scene[id_bld].x-all_shells_in_scene[i].x)<20) and all_build_in_scene[id_bld].uid_player~=all_shells_in_scene[i].uid_player then
+ 
+if(id_bld~=nil and math.abs(all_build_in_scene[id_bld].x-all_shells_in_scene[i].x)<20) and all_build_in_scene[id_bld].uid_player==all_shells_in_scene[i].target_player.uid then
 damage_build(all_build_in_scene[id_bld],2)
-remove_shell(i)
+remove_shell(i)  
+elseif(nearest_cat~=nil and math.abs(nearest_cat.x-all_shells_in_scene[i].x)<20) then
+damage_cat(nearest_cat,2)
+remove_shell(i) 
 end
 server:sendToAll("shells",all_shells_in_scene)
 end

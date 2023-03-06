@@ -210,8 +210,8 @@ animator=anim,
 uid_player=cat.uid_player,
 uid=cat.uid,
 lvl=cat.lvl,
-is_mirror=cat.is_mirror
-
+is_mirror=cat.is_mirror,
+hp=cat.hp
 }
 
 endfunction add_cat_to_all_cats(cat)id=find_id_cat_in_cats(cat)if(id==-1) thentable.insert(all_cats,new_cat(cat,new_animator(cats_main_sprites[cat.type],16,16)))
@@ -644,7 +644,9 @@ for i=1,#all_shells,1 do
 love.graphics.draw(main_sprite_shell,all_sprites_shells[all_shells[i].type], all_shells[i].x,all_shells[i].y,0,4,4)
 end
 endfunction draw_cats()for i=1,#all_cats,1 do
+love.graphics.print("HP:" .. all_cats[i].hp,all_cats[i].x,all_cats[i].y+60)
 if(all_cats[i].is_mirror==true) thendraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)
+
 else
 draw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,4,4)
 endendend
