@@ -177,6 +177,7 @@ function select_current_cat_animation_from_server(cat,anim)
 end
 
 end
+
 function add_player_in_players(player)
 lplayer=nil
 id=find_id_player_in_players(player)
@@ -215,7 +216,12 @@ hp=cat.hp
 }
 
 endfunction add_cat_to_all_cats(cat)id=find_id_cat_in_cats(cat)if(id==-1) thentable.insert(all_cats,new_cat(cat,new_animator(cats_main_sprites[cat.type],16,16)))
-set_animation(all_cats[#all_cats].animator,"stand")print("Is null2:"..all_cats[#all_cats].animator.timer)init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)elseset_animation(all_cats[id].animator,cat.anim)all_cats[id]=new_cat(cat,all_cats[id].animator)endendfunction find_id_cat_in_cats(cat)if(all_cats==nil) thenreturn -1endfor i=1, #all_cats,1 do
+set_animation(all_cats[#all_cats].animator,"stand")print("Is null2:"..all_cats[#all_cats].animator.timer)init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)else
+if(cat.hp<=0) then
+print("REMOVE")
+table.remove(all_cats,id)
+elseset_animation(all_cats[id].animator,cat.anim)all_cats[id]=new_cat(cat,all_cats[id].animator)
+endendendfunction find_id_cat_in_cats(cat)if(all_cats==nil) thenreturn -1endfor i=1, #all_cats,1 do
 if(all_cats[i].uid==cat.uid) thenreturn iendendreturn -1end
 function find_id_player_in_players(player)
 if(all_players==nil) then
@@ -270,6 +276,13 @@ end)
 	 client:on("update_player",function(lplayer)
 	 
 	 add_player_in_players(lplayer)
+	 end)
+	 client:on("kill_player",function(lplayer)
+	 id=find_id_player_in_players(lplayer)
+	 table.remove(all_players,id)
+	 end)
+	 client:on("dissconect",function()
+	 print("DWDW")
 	 end)
 	 	      client:on("get_player", function (player)
 			  if(my_player.animator~=nil) then

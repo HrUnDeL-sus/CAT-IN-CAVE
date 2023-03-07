@@ -80,7 +80,8 @@ lvl=1,
 type=ltype,
 animator=nil,
 anim="stand",
-is_mirror=false
+is_mirror=false,
+speed=5
 }
 table_res={}
 if ltype=="woodcutter" then
@@ -97,6 +98,9 @@ resource_build=nil,
 type_miner=1
 }
 elseif ltype=="shield" or ltype=="priest" then
+if(ltype=="shield") then
+main_table.speed=7
+end
 table_res={
 target_player=nil,
 max_period=20,
@@ -104,6 +108,7 @@ period=20
 }
 elseif  ltype=="archer" then
 table_res={
+target_player=nil,
 front_is_left=true,
 max_period=20,
 period=20
@@ -134,6 +139,19 @@ hp=cat.hp
 
 }
 
+end
+function kill_player(player)
+id=find_player_by_name(player.name)
+while all_players_in_scene[id].my_cats~=nil and all_players_in_scene[id].my_cats[1]~=nil do
+damage_cat(all_players_in_scene[id].my_cats[1],10000000000000)
+end
+while all_players_in_scene[id].my_builds~=nil and all_players_in_scene[id].my_builds[1]~=nil do
+damage_build(all_players_in_scene[id].my_builds[1],10000000000000)
+end
+
+server:sendToAll("kill_player",player)
+server:getClientByConnectId(player.connect_id_client):disconnect()
+table.remove(all_players_in_scene,id)
 end
 function create_sheel(cat,ltype,move)
 return {
@@ -260,7 +278,7 @@ function distribute_cats_attack(pl,target)
 for i=1,#pl.my_cats,1 do
 if(pl.my_cats[i].type=="shield" or pl.my_cats[i].type=="priest") and pl.my_cats[i].target_player==nil then
 all_players_in_scene[find_player_by_name(pl.name)].my_cats[i].target_player=target
-print("UES")
+
 end
 end
 
@@ -371,7 +389,7 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 		all_cost={}
 	for i=1,#all_type_builds,1 do
 	all_cost[all_type_builds[i]]=init_update_cost(all_type_builds[i])
-	print("NA:" .. all_type_builds[i])
+
 	end
 	new_player_send=convert_server_player_to_client_player(new_player)
 	new_player_send.uid=new_player.uid
@@ -413,7 +431,7 @@ lclient:send("get_count_cats",count_miner_cats(all_players_in_scene[find_player_
 lclient:send("get_priority",all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority)
 end)
 server:on("create_build", function(ltype,lclient)
-print("TYPE:".. ltype)
+
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
 if can_place_build_in_position(lplayer) and ((lplayer.has_start_build==false and ltype=="fortress") or (lplayer.has_start_build==true and ltype~="fortress")) and can_buy_build(lclient,ltype)  then
 if(lplayer.has_start_build==false) then
@@ -525,7 +543,7 @@ end
 end
 end
 else
-print("DW")
+
 end
 return bld
 end 
@@ -548,11 +566,11 @@ end
 function move_cat(cat,x)
 if(cat.x<x) then
 cat.is_mirror=false
-cat.x=cat.x+5+math.random(0,2)
+cat.x=cat.x+cat.speed+math.random(0,2)
 else
 
 cat.is_mirror=true
-cat.x=cat.x-5-math.random(0,2)
+cat.x=cat.x-cat.speed-math.random(0,2)
 end
 
 end
@@ -638,7 +656,21 @@ pl=find_player_by_uid(cat.uid_player)
 
 if(pl~=nil) then
 nearest_build=find_unnearest_build(cat.x,pl.my_builds,"wall",cat.front_is_left)
+nearest_enemy=find_nearest_enemy(cat.x,pl,700)
+if(nearest_enemy~=nil and cat.type=="sword") then
+if(math.abs(nearest_enemy.x-cat.x)<20) then
+if(cat.anim~="attack") then
+cat.anim="attack"
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+damage_cat(nearest_enemy,1)
 
+else
+cat.anim="run"
+move_cat(cat,nearest_enemy.x)
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+end
+else
 if(nearest_build~=nil) then
 distance=0
 new_pos=0
@@ -649,21 +681,43 @@ distance=cat.x-new_pos
 else
 new_pos=nearest_build.x-20
 distance=new_pos-cat.x
+end 
+if distance <=min_distance and distance>0  then
+
+if(nearest_enemy~=nil and cat.type=="archer") then
+cat.target_player=find_player_by_uid(nearest_enemy.uid_player)
+if(cat.anim~="attack") then
+cat.anim="attack"
+
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 end
+move_x=10
+if(cat.x>nearest_enemy.x) then
+move_x=-10
+end
+if(cat.period>=cat.max_period) then
 
+table.insert(all_shells_in_scene,create_sheel(cat,1,move_x))
+cat.period=0
+end
+cat.period=cat.period+0.5
+elseif(nearest_enemy==nil and cat.type=="archer") then
 
-if distance <=min_distance and distance>0  and cat.anim~="stand" then
 cat.is_mirror=cat.front_is_left
 
 cat.anim="stand"
 
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+else
+end
+
 elseif distance>min_distance or distance<0  then
 
 cat.anim="run"
 move_cat(cat,new_pos)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 else
+end
 end
 end
 end
@@ -690,23 +744,40 @@ end
 function damage_build(build,dmg)
 id_build=find_build_by_uid(all_build_in_scene,build.uid)
 if(id_build~=nil) then
+
 all_build_in_scene[id_build].hp=all_build_in_scene[id_build].hp-dmg
 if(all_build_in_scene[id_build].hp<=0) then
+if(all_build_in_scene[id_build].type=="fortress") then
+pl=find_player_by_uid(all_build_in_scene[id_build].uid_player)
+
 remove_build(id_build)
+kill_player(pl)
+else
+print("DESTROYYYYYYY")
+remove_build(id_build)
+end
 end
 server:sendToAll("builds",all_build_in_scene)
 end
 end
 function active_shield_and_priest_ai(cat)
+bld=nil
+if(cat.target_player~=nil) then
+bld=find_build(cat.target_player.my_builds,"fortress")
+end
+if(bld==nil) then
+cat.target_player=nil
+end
 if(cat.target_player~=nil) then
 
-bld=find_build(cat.target_player.my_builds,"fortress")
+
 bld_nearest_id=find_nearest_build(cat.target_player.my_builds,cat.x,nil)
 bld_nearest=nil
 if(bld_nearest_id~=nil) then
 bld_nearest=cat.target_player.my_builds[bld_nearest_id]
 end
-if bld_nearest~=nil then
+
+if bld_nearest~=nil  then
 if  math.abs(cat.x-bld_nearest.x)<200 and cat.type=="shield" then
 if(cat.anim~="stand") then
 cat.anim="stand"
@@ -730,19 +801,19 @@ if(cat.period>=cat.max_period) then
 table.insert(all_shells_in_scene,create_sheel(cat,2,move_x))
 cat.period=0
 end
-cat.period=cat.period+0.2
+cat.period=cat.period+0.5
 
 else
 cat.anim="run"
 move_cat(cat,bld.x)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
 end
-elseif math.abs(cat.x-bld.x)<20 then
-	cat.target_player=nil
 else
+
 cat.anim="run"
 move_cat(cat,bld.x)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+
 end
 
 
@@ -768,29 +839,49 @@ end
 function remove_cat(cat)
 for i=1,#all_players_in_scene,1 do
 pl=all_players_in_scene[i]
+
 for q=1,#pl.my_cats,1 do
+
 if(cat.uid==all_players_in_scene[i].my_cats[q].uid) then
+for e=1,#all_cats_in_scene,1 do
+if(cat.uid==all_cats_in_scene[e].uid) then
 table.remove(all_players_in_scene[i].my_cats,q)
+table.remove(all_cats_in_scene,e)
+return 1
 end
 end
-end
-for i=1,#all_players_in_scene,1 do
-if(cat.uid==all_players_in_scene[i].uid) then
-table.remove(all_players_in_scene[i].my_cats,i)
-end
+
+
 
 end
 end
+end
+end
 function damage_cat(cat,dmg)
+if(cat~=nil) then
 for i=1,#all_cats_in_scene,1 do
 if(cat.uid==all_cats_in_scene[i].uid) then
 cat.hp=cat.hp-dmg
-server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+
 if(cat.hp<=0) then
 remove_cat(cat)
 end
+server:sendToAll("update_cat",convert_server_cat_to_client_cat(cat))
+return 1
 end
 end
+end
+end
+function find_nearest_enemy(x,pl,dist)
+result_enemy=nil
+for i=1,#all_cats_in_scene, 1 do
+enemy=all_cats_in_scene[i]
+if (enemy.type=="priest" or enemy.type=="shield") and  enemy.target_player~=nil and enemy.target_player.uid==pl.uid and math.abs(x-enemy.x)<dist then
+result_enemy=all_cats_in_scene[i]
+dist=math.abs(x-enemy.x)
+end
+end
+return result_enemy
 end
 function find_nearest_cat(cats,x)
 distance=100000000
@@ -806,17 +897,17 @@ end
 function move_shells()
 for i=1,#all_shells_in_scene,1 do
 if(all_shells_in_scene[i]~=nil) then
-print("D:".. all_shells_in_scene[i].move_x)
+
 all_shells_in_scene[i].x=all_shells_in_scene[i].x+all_shells_in_scene[i].move_x
 nearest_cat=find_nearest_cat(all_shells_in_scene[i].target_player.my_cats,all_shells_in_scene[i].x)
 
 id_bld=find_nearest_build(all_build_in_scene,all_shells_in_scene[i].x,nil)
  
 if(id_bld~=nil and math.abs(all_build_in_scene[id_bld].x-all_shells_in_scene[i].x)<20) and all_build_in_scene[id_bld].uid_player==all_shells_in_scene[i].target_player.uid then
-damage_build(all_build_in_scene[id_bld],2)
+damage_build(all_build_in_scene[id_bld],5)
 remove_shell(i)  
 elseif(nearest_cat~=nil and math.abs(nearest_cat.x-all_shells_in_scene[i].x)<20) then
-damage_cat(nearest_cat,2)
+damage_cat(nearest_cat,10)
 remove_shell(i) 
 end
 server:sendToAll("shells",all_shells_in_scene)
@@ -825,7 +916,7 @@ end
 end
 function active_cat_ai()
 for i=1,#all_cats_in_scene,1 do
-
+if(all_cats_in_scene[i]~=nil) then
 if all_cats_in_scene[i].type=="miner" or all_cats_in_scene[i].type=="woodcutter" then
 active_woodcutter_and_miner_ai(all_cats_in_scene[i])
 elseif all_cats_in_scene[i].type=="archer" or all_cats_in_scene[i].type=="sword" then
@@ -833,6 +924,7 @@ active_archer_and_sword_ai( all_cats_in_scene[i])
 elseif  all_cats_in_scene[i].type=="shield" or all_cats_in_scene[i].type=="priest" then
 active_shield_and_priest_ai( all_cats_in_scene[i])
 else
+end
 end
 --server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))
 
