@@ -142,15 +142,18 @@ hp=cat.hp
 end
 function kill_player(player)
 id=find_player_by_name(player.name)
+print("ID:"..id)
 while all_players_in_scene[id].my_cats~=nil and all_players_in_scene[id].my_cats[1]~=nil do
 damage_cat(all_players_in_scene[id].my_cats[1],10000000000000)
 end
 while all_players_in_scene[id].my_builds~=nil and all_players_in_scene[id].my_builds[1]~=nil do
-damage_build(all_players_in_scene[id].my_builds[1],10000000000000)
+kill_build(all_players_in_scene[id].my_builds[1])
 end
 
 server:sendToAll("kill_player",player)
+if(server:getClientByConnectId(player.connect_id_client)~=nil) then
 server:getClientByConnectId(player.connect_id_client):disconnect()
+end
 table.remove(all_players_in_scene,id)
 end
 function create_sheel(cat,ltype,move)
@@ -184,7 +187,7 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-resources={0,0,0,0,10,10},
+resources={0,0,0,0,10,50},
 priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
@@ -419,7 +422,8 @@ server:on("create_cat", function(data,lclient)
 ltype=data[1]
 lbuild=data[2]
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-
+if(lplayer.resources[6]-5>=0) then
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-5
 add_cat_in_scene(create_cat(lbuild.x+math.random(0,100),lbuild.y+65,lbuild.uid_player,ltype))
 if(ltype=="miner") then
 all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority[1]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority[1]+1
@@ -429,6 +433,8 @@ distribute_cats_defend(lplayer)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[#all_cats_in_scene]))
 lclient:send("get_count_cats",count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())]))
 lclient:send("get_priority",all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority)
+lclient:send("update_resources",all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources)
+end
 end)
 server:on("create_build", function(ltype,lclient)
 
@@ -636,6 +642,7 @@ else if(find_player_by_uid(cat.uid_player)~=nil) then
 				end
 				if(cat.resource_build.type==10) then
 					pl.resources[5]=pl.resources[5]+cat.amount_resources
+					pl.resources[6]=pl.resources[6]+math.random(0,2)
 				end
 				cat.resource_build=nil
 				cat.amount_resources=0
@@ -741,6 +748,17 @@ end
 end
 table.remove(all_build_in_scene,build_id)
 end
+function kill_build(build)
+id_build=find_build_by_uid(all_build_in_scene,build.uid)
+if(id_build~=nil) then
+
+all_build_in_scene[id_build].hp=-1
+pl=find_player_by_uid(all_build_in_scene[id_build].uid_player)
+remove_build(id_build)
+end
+server:sendToAll("builds",all_build_in_scene)
+end
+
 function damage_build(build,dmg)
 id_build=find_build_by_uid(all_build_in_scene,build.uid)
 if(id_build~=nil) then
@@ -749,7 +767,6 @@ all_build_in_scene[id_build].hp=all_build_in_scene[id_build].hp-dmg
 if(all_build_in_scene[id_build].hp<=0) then
 if(all_build_in_scene[id_build].type=="fortress") then
 pl=find_player_by_uid(all_build_in_scene[id_build].uid_player)
-
 remove_build(id_build)
 kill_player(pl)
 else
@@ -931,11 +948,21 @@ end
 end
 
 end
+function remove_players()
+for i=1,#all_players_in_scene,1 do
+if(server:getClientByConnectId(all_players_in_scene[i].connect_id_client)==nil) then
+print("USE:" .. i)
+kill_player(all_players_in_scene[i])
+return 1
+end
+end
+end
 function love.update(dt)
 
 local result, err =pcall(local_update_server)
 tick=tick+dt
 if(tick>1/20) then
+remove_players()
 active_cat_ai()
 move_shells()
 tick=0

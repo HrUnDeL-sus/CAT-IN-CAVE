@@ -279,6 +279,10 @@ end)
 	 end)
 	 client:on("kill_player",function(lplayer)
 	 id=find_id_player_in_players(lplayer)
+	 table.insert(all_msg_in_chat,lplayer.name .. " die!!!")
+if(#all_msg_in_chat>10) then
+table.remove(all_msg_in_chat,1)
+end
 	 table.remove(all_players,id)
 	 end)
 	 client:on("dissconect",function()
