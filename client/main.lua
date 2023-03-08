@@ -322,7 +322,7 @@ function love.load()
      cam = camera.new(0,0,50000,720)
 	 cam:setWorld(0,0,50000,720)
 	 	
-	 client = sock.newClient("88.85.171.249", 22123)
+	 client = sock.newClient("192.168.0.13", 22122)
 
 	 init_client_requests()
 
@@ -692,8 +692,9 @@ draw_negotiation_house_icons()
 end
 if(all_players~=nil)then
   for i=1,#all_players,1 do
+  	love.graphics.print("Name:" .. all_players[i].name,all_players[i].x,all_players[i].y-100)
   if all_players[i].is_mirror==true then
- 
+
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
    else 
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,4,4)

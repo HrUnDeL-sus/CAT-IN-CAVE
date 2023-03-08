@@ -8,8 +8,37 @@ all_shells_in_scene={}
 tick=0
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
+names={}
+function remove_elements(a)
+b={}
+for i=1,#a,1 do
+count_elements=0
+for q=1,#a,1 do
+if(a[q]==a[i]) then
+count_elements=count_elements+1
+end
+end
 
+if(count_elements==1) then
+table.insert(b,a[i])
+end
 
+end
+return b
+end
+function load_names()
+f=io.open("names.txt","r+b")
+if(f==nil) then
+return -1
+end
+for line in f:lines() do
+table.insert(names,line)
+
+end
+print("L:" .. #names)
+names= remove_elements(names)
+print("L2:" .. #names)
+end
 function create_random_vegetation(lx)
 ly=520
 ltype=math.random(1,13)
@@ -178,9 +207,20 @@ hp=100,
 type=ltype
 }
 end
-function create_player(lname,client_id,lx,ly)
+
+function get_name()
+name=names[math.random(1,#names)]
+for i=1,#all_players_in_scene,1 do
+if string.find(all_players_in_scene[i].name,name) then
+name=name .. math.random(1,100)
+return name
+end
+end
+return name
+end
+function create_player(client_id,lx,ly)
 return {
-name=lname,
+name=get_name(),
 x=lx,
 y=ly,
 uid=random_string(9),
@@ -311,10 +351,12 @@ function send_msg_to_all(msg)
 server:sendToAll("get_message",msg)
 end
 function love.load()
+
+load_names()
 math.randomseed(os.clock())
 	generate_world()
     -- Creating a server on any IP, port 22122
-    server = sock.newServer("*", 22123)
+    server = sock.newServer("*", 22122)
 		server:on("send_friend_request", function(data)
 		player_name=data[1]
 		player_name2=data[2]
@@ -387,7 +429,7 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
-		new_player=create_player(math.random(0,10000),client:getConnectId(),math.random(1000,19000),500)
+		new_player=create_player(client:getConnectId(),math.random(1000,19000),500)
 		add_player_in_scene(new_player)
 		all_cost={}
 	for i=1,#all_type_builds,1 do
