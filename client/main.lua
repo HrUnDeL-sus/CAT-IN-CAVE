@@ -19,6 +19,7 @@ all_sprites_build={}
 all_sprites_icons={}
 all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
 chat_is_active=false
+game_is_start=false
 text_for_chat=""
 select_priotiry=1
 select_title=1
@@ -112,6 +113,8 @@ relationship={}
 end
 function init_vegetation_sprites()
 main_sprite_vegetation=love.graphics.newImage("vegetation.png")
+
+
 main_sprite_vegetation:setFilter("linear", "nearest")
 for i=1,13,1 do
 all_sprites_vegetation[i]=love.graphics.newQuad(8*(i-1),0,8,8,main_sprite_vegetation)
@@ -312,6 +315,7 @@ function love.load()
 	love.graphics.setFont(font)
 	cat_image = love.graphics.newImage("cat.png")
 	cat_image:setFilter("linear", "nearest")
+	bg_lobby_image=love.graphics.newImage("lobby_background.jpg")
 	init_build_sprites()
 	init_icons()
 	init_shells()
@@ -319,14 +323,11 @@ function love.load()
 	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
+	 error_background=love.graphics.newImage("error.jpg")
      cam = camera.new(0,0,50000,720)
 	 cam:setWorld(0,0,50000,720)
 	 	
-	 client = sock.newClient("192.168.0.13", 22122)
-
-	 init_client_requests()
-
-	  client:connect()
+connect_client()
 
 end
 function love.quit()
@@ -521,6 +522,7 @@ for i=1,#all_msg_in_chat,1 do
 end
 
 end
+
 function draw_negotiation_house_icons()
 start_y=nearest_build.y-50
 start_x=nearest_build.x-35
@@ -571,6 +573,14 @@ index=index+1
 
 end
 end
+end
+function connect_client()
+ client = sock.newClient("88.85.171.249", 22122)
+
+  init_client_requests()
+
+ client:connect()
+  print(client:isConnected())
 end
 function draw_fortress_icons()
 start_y=nearest_build.y-50
@@ -667,7 +677,34 @@ if(all_cats[i].is_mirror==true) thendraw_animator(all_cats[i].animator,all_cats
 else
 draw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,4,4)
 endendend
+function reconect_client()
+client:connect()
+end
+function draw_connecting()
+
+ love.graphics.draw(error_background, 0,0,0,1,1)
+love.graphics.print("Trying to connect to the server",200,0)
+
+end
+function draw_lobby()
+
+ love.graphics.draw(bg_lobby_image, 0,0,0,1,1)
+love.graphics.print("Game hasn't started yet" ,200,0)
+end
 function love.draw()
+if(client:isConnecting() or client:isDisconnected()) then
+draw_connecting()
+if(client:isDisconnected()) then
+reconect_client()
+end
+
+return 0
+end
+
+if(game_is_start==false) then
+draw_lobby()
+return 0
+end
 key_is_press()
 
 cam:setPosition(my_player.x, 0)

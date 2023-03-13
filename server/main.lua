@@ -6,6 +6,8 @@ all_build_in_scene={}
 all_vegetation_in_scene={}
 all_shells_in_scene={}
 tick=0
+is_start_game=false;
+timer_start_game=60;
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
 names={}
@@ -232,7 +234,8 @@ priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
 relationship={},
-has_start_build=false
+has_start_build=false,
+in_game=false
 }
 end
 function add_cat_in_scene(cat)
@@ -699,6 +702,13 @@ else
 
 end
 end
+end
+function can_active(cat)
+if(is_start_game==false) then
+return false
+end
+return true
+
 end
 function active_archer_and_sword_ai(cat)
 pl=find_player_by_uid(cat.uid_player)
