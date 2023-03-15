@@ -6,8 +6,9 @@ all_build_in_scene={}
 all_vegetation_in_scene={}
 all_shells_in_scene={}
 tick=0
-is_start_game=false;
-timer_start_game=60;
+tick_timer=0
+is_start_game=false
+timer_start_game=10
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
 names={}
@@ -429,9 +430,12 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
+
     server:on("connect", function (data,client)
    -- Send a message back to the connected client
 		print("Client connect")
+		
+		server:sendToAll("update_state_game",is_start_game)
 		new_player=create_player(client:getConnectId(),math.random(1000,19000),500)
 		add_player_in_scene(new_player)
 		all_cost={}
@@ -448,10 +452,13 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 		for i=1,#all_cats_in_scene,1 do
 		client:send("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))
 		end
+		for i=1,#all_players_in_scene,1 do
+		client:send("update_player",convert_server_player_to_client_player(all_players_in_scene[i]))
+		end
 	client:send("send_cost_build",all_cost)
 		send_player(new_player)
 	--	add_object_in_scene()
-		
+		print("Count clients:"..#all_players_in_scene)
 end)
 server:on("send_priority", function(priority,lclient)
 if(priority[1]+priority[2]+priority[3]+priority[4]<=count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())])) and priority[5]+priority[6]==100 and priority[5]>=0 and priority[6]>=0 then
@@ -1009,10 +1016,42 @@ return 1
 end
 end
 end
+function sleep(n)
+local_tick=0
+while(n>local_tick) do
+local_tick=local_tick+0.01
+
+end
+end
+function end_game()
+if(is_start_game==true and #all_players_in_scene<=1) then
+is_start_game=false
+timer_start_game=10
+server:sendToAll("restart_game",nil)
+
+
+end
+end
 function love.update(dt)
 
 local result, err =pcall(local_update_server)
 tick=tick+dt
+if(is_start_game==false and #all_players_in_scene>=2) then
+tick_timer=tick_timer+dt
+if(tick_timer>1) then
+tick_timer=0
+timer_start_game=timer_start_game-1
+server:sendToAll("update_timer",timer_start_game)
+end
+if(timer_start_game<=0) then
+is_start_game=true
+server:sendToAll("update_state_game",is_start_game)
+end
+else
+timer_start_game=10
+
+end
+end_game()
 if(tick>1/20) then
 remove_players()
 active_cat_ai()

@@ -19,7 +19,6 @@ all_sprites_build={}
 all_sprites_icons={}
 all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
 chat_is_active=false
-game_is_start=false
 text_for_chat=""
 select_priotiry=1
 select_title=1
@@ -30,6 +29,8 @@ tick=0
 nearest_build=nil
 all_cost=nil
 has_house=false
+timer_start_game=60
+is_start_game=true
 -- client.lua
 function new_animator(main_image,x_pixel,y_pixel)
 return {
@@ -240,6 +241,9 @@ end
 return -1
 end
 function init_client_requests()
+		client:on("update_timer", function(value)
+	timer_start_game=value
+	end)
 client:on("get_priority",function(prior)
 my_player.priority=prior
 end)
@@ -258,6 +262,10 @@ table.remove(all_msg_in_chat,1)
 end
 
 end)
+client:on("update_state_game",function(state)
+is_start_game=state
+print(is_start_game)
+end)
 client:on("send_cost_build",function(l_cost)
 all_cost=l_cost
 end)
@@ -265,7 +273,8 @@ end)
 client:on("update_resources",function(res)
 
 my_player.resources=res
-end)client:on("update_cat",function(cat)add_cat_to_all_cats(cat)end)
+end)client:on("update_cat",function(cat)
+print("UDAPTE")add_cat_to_all_cats(cat)end)
 client:on("shells", function(lshells)
 all_shells=lshells
 end)
@@ -279,6 +288,15 @@ end)
 	 client:on("update_player",function(lplayer)
 	 
 	 add_player_in_players(lplayer)
+	 end)
+	 client:on("restart_game",function(d)
+	 	print("RETARRT:" .. #all_players)
+	 all_cats={}
+	all_players={}
+	all_builds={}
+	all_msg_in_chat={}
+is_start_game=false
+client:reset()
 	 end)
 	 client:on("kill_player",function(lplayer)
 	 id=find_id_player_in_players(lplayer)
@@ -426,6 +444,7 @@ else
 	end
 	
 	end
+
 	client:send("send_priority",my_player.priority,client)
 	end
 	end
@@ -690,6 +709,8 @@ function draw_lobby()
 
  love.graphics.draw(bg_lobby_image, 0,0,0,1,1)
 love.graphics.print("Game hasn't started yet" ,200,0)
+love.graphics.print("Count cats in lobby:" .. #all_players,200,30)
+love.graphics.print("Game will start in " .. timer_start_game,200,60)
 end
 function love.draw()
 if(client:isConnecting() or client:isDisconnected()) then
@@ -701,7 +722,7 @@ end
 return 0
 end
 
-if(game_is_start==false) then
+if(is_start_game==false) then
 draw_lobby()
 return 0
 end
