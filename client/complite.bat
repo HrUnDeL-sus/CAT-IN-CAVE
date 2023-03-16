@@ -1,3 +1,3 @@
-"C:\Program Files\7-Zip\7z.exe" a  game.zip *.lua *.png *.jpg *.ttf *.ogg
+"C:\Program Files\7-Zip\7z.exe" a  game.zip *.lua *.png *.jpg *.ttf *.ogg background\
 copy /b love.exe+game.zip game.exe
 game.exe

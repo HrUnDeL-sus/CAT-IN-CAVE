@@ -17,6 +17,7 @@ all_builds={}cats_main_sprites={}
 all_vegetations={}
 all_sprites_build={}
 all_sprites_icons={}
+bg_lobby_images={}
 all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
 chat_is_active=false
 text_for_chat=""
@@ -25,7 +26,8 @@ select_title=1
 select_relationship=1
 select_relationship_player=-1
 all_msg_in_chat={}
-tick=0
+tick=10000
+index_cat_bg=0
 nearest_build=nil
 all_cost=nil
 has_house=false
@@ -338,13 +340,14 @@ end)
 endfunction init_cats()for i=1,#all_type_cats,1 docats_main_sprites[all_type_cats[i]]=love.graphics.newImage(all_type_cats[i] .."_cat.png")
 cats_main_sprites[all_type_cats[i]]:setFilter("linear", "nearest")endend
 function love.load()
-
+math.randomseed(os.clock())	
 	font = love.graphics.newFont("Pixtile.ttf", 15)
 	love.graphics.setFont(font)
 	cat_image = love.graphics.newImage("cat.png")
 	cat_image:setFilter("linear", "nearest")
-	bg_lobby_image=love.graphics.newImage("lobby_background.jpg")
+
 	init_build_sprites()
+	load_backgrounds()
 	init_icons()
 	init_shells()
 	init_cats()
@@ -718,10 +721,11 @@ love.graphics.print("Trying to connect to the server",200,0)
 end
 function draw_lobby()
 
- love.graphics.draw(bg_lobby_image, 0,0,0,1,1)
+love.graphics.draw(bg_lobby_image, 0,0,0,1,1)
 love.graphics.print("Game hasn't started yet" ,200,0)
 love.graphics.print("Count cats in lobby:" .. #all_players,200,30)
 love.graphics.print("Game will start in " .. timer_start_game,200,60)
+love.graphics.print("Index:" .. index_cat_bg,200,90)
 end
 function love.draw()
 if(client:isConnecting() or client:isDisconnected()) then
@@ -785,5 +789,17 @@ end
 function love.update(dt)
 tick=tick+dt
 client:update()
+
+if(tick>=10 and is_start_game==false) then
+tick=0
+index_cat_bg=index_cat_bg+1
+if(index_cat_bg==101) then
+index_cat_bg=1
+end
+bg_lobby_image=love.graphics.newImage("cat"..index_cat_bg..".png")
+
+end
 nearest_build=find_nearest_build()
+end
+function load_backgrounds()
 end
