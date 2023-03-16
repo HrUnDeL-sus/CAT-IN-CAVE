@@ -102,6 +102,7 @@ end
 
 end
 function create_cat(lx,ly,player_uid,type)
+
 main_table={
 x=lx,
 y=ly,
@@ -166,8 +167,8 @@ type=cat.type,
 animator=nil,
 anim=cat.anim,
 is_mirror=cat.is_mirror,
-hp=cat.hp
-
+hp=cat.hp,
+has_build=cat.has_build
 
 }
 
@@ -222,6 +223,10 @@ end
 return name
 end
 function create_player(client_id,lx,ly)
+lin_game=true
+if(is_start_game==true) then
+lin_game=false
+end
 return {
 name=get_name(),
 x=lx,
@@ -235,8 +240,8 @@ priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
 relationship={},
-has_start_build=false,
-in_game=false
+in_game=lin_game,
+has_build=false
 }
 end
 function add_cat_in_scene(cat)
@@ -362,8 +367,12 @@ math.randomseed(os.clock())
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22122)
 		server:on("send_friend_request", function(data)
+
 		player_name=data[1]
 		player_name2=data[2]
+				if(can_active(all_players_in_scene[find_player_by_name(player_name)])==false) then
+		return
+		end
 	pl1=all_players_in_scene[find_player_by_name(player_name)]
 	pl2=all_players_in_scene[find_player_by_name(player_name2)]
 	all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={state=0,friend_request=true}
@@ -372,6 +381,9 @@ math.randomseed(os.clock())
 	server:on("attack_player_request", function(data)
 		player_name=data[1]
 		player_name2=data[2]
+			if(can_active(all_players_in_scene[find_player_by_name(player_name)])==false) then
+		return
+		end
 	send_msg_to_all(player_name .. " attack " .. player_name2 .. "!!!")
 	
 
@@ -385,9 +397,13 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 
 	end)
 	server:on("update_friend_request", function(data)
+	
 	player_name=data[1]
 	player_name2=data[2]
 	is_accept=data[3]
+	if(can_active(all_players_in_scene[find_player_by_name(player_name)])==false) then
+		return
+		end
 	if(all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]~=nil and all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name].state==1) then
 	return
 	end
@@ -409,6 +425,7 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 	send_msg_to_all(all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
 	end)
 	server:on("get_player_server", function (player,client)
+	
 	if(player.is_mirror==nil) then
 	player.is_mirror=all_players_in_scene[find_player_by_id(client:getConnectId())].is_mirror
 	end
@@ -427,7 +444,9 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 	if (all_players_in_scene[find_player_by_id(client:getConnectId())].x>20000) then
 	all_players_in_scene[find_player_by_id(client:getConnectId())].x=20000
 	end
+
 	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
+
 	--print(all_players_in_scene[find_player_by_id(client:getConnectId())].connect_id_client .." NEW POS " .. all_players_in_scene[find_player_by_id(client:getConnectId())].x .. " " ..all_players_in_scene[find_player_by_id(client:getConnectId())].y)
 	end)
 
@@ -443,12 +462,14 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 	all_cost[all_type_builds[i]]=init_update_cost(all_type_builds[i])
 
 	end
+	
 	new_player_send=convert_server_player_to_client_player(new_player)
 	new_player_send.uid=new_player.uid
 	new_player_send.priority=new_player.priority
 		client:send("get_player",new_player_send)
 		client:send("builds",all_build_in_scene)
 		client:send("vegetations",all_vegetation_in_scene)
+	
 		for i=1,#all_cats_in_scene,1 do
 		client:send("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[i]))
 		end
@@ -456,11 +477,16 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 		client:send("update_player",convert_server_player_to_client_player(all_players_in_scene[i]))
 		end
 	client:send("send_cost_build",all_cost)
+		if(all_players_in_scene[find_player_by_id(client:getConnectId())].in_game) then
 		send_player(new_player)
+		end
 	--	add_object_in_scene()
 		print("Count clients:"..#all_players_in_scene)
 end)
 server:on("send_priority", function(priority,lclient)
+if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==false) then
+		return
+		end
 if(priority[1]+priority[2]+priority[3]+priority[4]<=count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())])) and priority[5]+priority[6]==100 and priority[5]>=0 and priority[6]>=0 then
 all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority=priority
 distribute_cats_defend(all_players_in_scene[find_player_by_id(lclient:getConnectId())])
@@ -471,6 +497,9 @@ end
 lclient:send("get_priority",all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority)
 end)
 server:on("create_cat", function(data,lclient)
+if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==false) then
+		return
+		end
 ltype=data[1]
 lbuild=data[2]
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
@@ -491,9 +520,13 @@ end)
 server:on("create_build", function(ltype,lclient)
 
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if can_place_build_in_position(lplayer) and ((lplayer.has_start_build==false and ltype=="fortress") or (lplayer.has_start_build==true and ltype~="fortress")) and can_buy_build(lclient,ltype)  then
-if(lplayer.has_start_build==false) then
-all_players_in_scene[find_player_by_id(lclient:getConnectId())].has_start_build=true
+if(can_active(lplayer)==false) then
+		return
+		end
+if can_place_build_in_position(lplayer) and ((lplayer.has_build==false and ltype=="fortress") or (lplayer.has_build==true and ltype~="fortress")) and can_buy_build(lclient,ltype)  then
+if(lplayer.has_build==false) then
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].has_build=true
+send_player(all_players_in_scene[find_player_by_id(lclient:getConnectId())])
 end
 add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
 table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_builds,all_build_in_scene[#all_build_in_scene])
@@ -542,11 +575,14 @@ current_animation=player.current_animation,
 priority=1,
 is_mirror=player.is_mirror,
 uid=-1,
-count_cats=0
+count_cats=0,
+in_game=player.in_game,
+has_build=player.has_build
 }
 
 end
 function send_player(player)
+
 server:sendToAll("update_player",convert_server_player_to_client_player(player))
 
 end
@@ -714,7 +750,7 @@ function can_active(cat)
 if(is_start_game==false) then
 return false
 end
-return true
+return cat.in_game
 
 end
 function active_archer_and_sword_ai(cat)
@@ -1024,16 +1060,28 @@ local_tick=local_tick+0.01
 end
 end
 function end_game()
-if(is_start_game==true and #all_players_in_scene<=1) then
+count_players_in_game=0
+for i=1,#all_players_in_scene,1 do
+if all_players_in_scene[i].in_game==true then
+count_players_in_game=count_players_in_game+1
+end
+end
+if(is_start_game==true and count_players_in_game<=1) then
 is_start_game=false
-timer_start_game=10
+timer_start_game=120
 server:sendToAll("restart_game",nil)
 
 
 end
 end
-function love.update(dt)
+function draw()
+for i=1,#all_players_in_scene,1 do
+print(all_players_in_scene[i] .. ":" .. tostring(all_players_in_scene[i].in_game))
+end
 
+end
+function love.update(dt)
+--draw()
 local result, err =pcall(local_update_server)
 tick=tick+dt
 if(is_start_game==false and #all_players_in_scene>=2) then
@@ -1048,7 +1096,7 @@ is_start_game=true
 server:sendToAll("update_state_game",is_start_game)
 end
 else
-timer_start_game=10
+timer_start_game=120
 
 end
 end_game()

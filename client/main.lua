@@ -97,7 +97,12 @@ end
 end
 return nil
 end
-function new_player(lx,ly,lname,lanimator,lis_mirror)
+function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build)
+lin_game=true
+if(is_start_game==true) then
+lin_game=false
+end
+
 return {
 x=lx,
 y=ly,
@@ -108,7 +113,9 @@ resources={0,0,0,0,10,10},
 priority={80,0,0,0},
 uid=-1,
 count_cats_miner=0,
-relationship={}
+relationship={},
+in_game=lin_game,
+has_build=hhas_build
 }
 
 end
@@ -157,7 +164,7 @@ all_sprites_build["tower"..i]=love.graphics.newQuad(32*(i-1),32*4,32,32,main_spr
 end
 all_sprites_build["negotiation_house1"]=love.graphics.newQuad(0,32*2,32,32,main_sprite_build)
 end
-function init_cat_animator(cat,ltype)print("IS NIL22:",cat.animator==nil)
+function init_cat_animator(cat,ltype)
 			  add_animation(cat.animator,"stand",2,40)
 			   add_animation(cat.animator,"run",2,20)
 if (ltype=="archer") then
@@ -183,11 +190,12 @@ end
 end
 
 function add_player_in_players(player)
+
 lplayer=nil
 id=find_id_player_in_players(player)
 
 if(id==-1) then
-	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false)
+	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,false)
 
 table.insert(all_players,lplayer)
 
@@ -196,10 +204,10 @@ select_current_cat_animation_from_server(all_players[#all_players],player.curren
 
 else
 
-all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror)
+all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build)
 
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
-
+my_player.has_build=all_players[id].has_build
  if(my_player.name==all_players[id].name) then
 	 all_players[id]=my_player
 
@@ -207,6 +215,7 @@ end
 end
 end
 function new_cat(cat,anim)
+
 return {
 x=cat.x,
 y=cat.y,
@@ -220,9 +229,9 @@ hp=cat.hp
 }
 
 endfunction add_cat_to_all_cats(cat)id=find_id_cat_in_cats(cat)if(id==-1) thentable.insert(all_cats,new_cat(cat,new_animator(cats_main_sprites[cat.type],16,16)))
-set_animation(all_cats[#all_cats].animator,"stand")print("Is null2:"..all_cats[#all_cats].animator.timer)init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)else
+set_animation(all_cats[#all_cats].animator,"stand")init_cat_animator(all_cats[#all_cats],all_cats[#all_cats].type)else
 if(cat.hp<=0) then
-print("REMOVE")
+
 table.remove(all_cats,id)
 elseset_animation(all_cats[id].animator,cat.anim)all_cats[id]=new_cat(cat,all_cats[id].animator)
 endendendfunction find_id_cat_in_cats(cat)if(all_cats==nil) thenreturn -1endfor i=1, #all_cats,1 do
@@ -264,7 +273,7 @@ end
 end)
 client:on("update_state_game",function(state)
 is_start_game=state
-print(is_start_game)
+
 end)
 client:on("send_cost_build",function(l_cost)
 all_cost=l_cost
@@ -274,7 +283,7 @@ client:on("update_resources",function(res)
 
 my_player.resources=res
 end)client:on("update_cat",function(cat)
-print("UDAPTE")add_cat_to_all_cats(cat)end)
+add_cat_to_all_cats(cat)end)
 client:on("shells", function(lshells)
 all_shells=lshells
 end)
@@ -288,9 +297,10 @@ end)
 	 client:on("update_player",function(lplayer)
 	 
 	 add_player_in_players(lplayer)
+	 
 	 end)
 	 client:on("restart_game",function(d)
-	 	print("RETARRT:" .. #all_players)
+	 	
 	 all_cats={}
 	all_players={}
 	all_builds={}
@@ -307,7 +317,7 @@ end
 	 table.remove(all_players,id)
 	 end)
 	 client:on("dissconect",function()
-	 print("DWDW")
+	
 	 end)
 	 	      client:on("get_player", function (player)
 			  if(my_player.animator~=nil) then
@@ -504,7 +514,6 @@ else
 		end
    end
     if key == "5" then
-	print("KEY")
 	     if(nearest_build~=nil and nearest_build.type=="home") then
     client:send("create_cat",{"priest",nearest_build},client)
 	 elseif(nearest_build~=nil and nearest_build.type=="fortress") then
@@ -549,7 +558,7 @@ start_i=((select_title-1)*4)+1
 index=start_i
 for i=start_i,(select_title*4),1 do
 
-if(all_players[i]~=nil) then
+if(all_players[i]~=nil) and all_players[i].has_build then
 if(select_relationship+(((select_title-1)*4))==index) then
 if(all_players[i].name==my_player.name) then
 love.graphics.print({{1,0,0,1},"YOU"},start_x,start_y)
@@ -599,7 +608,6 @@ function connect_client()
   init_client_requests()
 
  client:connect()
-  print(client:isConnected())
 end
 function draw_fortress_icons()
 start_y=nearest_build.y-50
@@ -670,9 +678,11 @@ end
 function draw_gui()
 
 draw_chat()
+if(my_player.in_game==true) then
 draw_icons()
 if(nearest_build==nil) then
 draw_shop_builds()
+end
 end
 if(chat_is_active==true) then
     love.graphics.print("Send:" .. text_for_chat,300,450)
@@ -683,6 +693,7 @@ if(chat_is_active==true) then
 		love.graphics.print("Ping:" ..client:getRoundTripTime(),450,40)
 		love.graphics.print("Players count:" ..#all_players,450,60)
 end
+
 function draw_shells()
 
 for i=1,#all_shells,1 do
@@ -726,6 +737,7 @@ if(is_start_game==false) then
 draw_lobby()
 return 0
 end
+
 key_is_press()
 
 cam:setPosition(my_player.x, 0)
@@ -736,6 +748,7 @@ cam:setPosition(my_player.x, 0)
 
 
 cam:draw(function(l,t,w,h)
+
 draw_vegetations()
 draw_builds()
 
@@ -748,6 +761,7 @@ draw_fortress_icons()
 elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") then
 draw_negotiation_house_icons()
 end
+
 if(all_players~=nil)then
   for i=1,#all_players,1 do
   	love.graphics.print("Name:" .. all_players[i].name,all_players[i].x,all_players[i].y-100)
@@ -763,11 +777,12 @@ if(all_players~=nil)then
    draw_shells()   draw_cats()
    
 end)
+
 draw_gui()
+
 end
 
 function love.update(dt)
-
 tick=tick+dt
 client:update()
 nearest_build=find_nearest_build()
