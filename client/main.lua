@@ -117,7 +117,8 @@ uid=-1,
 count_cats_miner=0,
 relationship={},
 in_game=lin_game,
-has_build=hhas_build
+has_build=hhas_build,
+count_cats=1
 }
 
 end
@@ -263,6 +264,10 @@ client:on("get_relationship", function(lrelationship)
 my_player.relationship=lrelationship
 end)
 client:on("get_count_cats",function(count)
+my_player.count_cats=count
+
+end)
+client:on("get_count_cats_miner",function(count)
 my_player.count_cats_miner=count
 
 end)
@@ -308,7 +313,7 @@ end)
 	all_builds={}
 	all_msg_in_chat={}
 is_start_game=false
-client:reset()
+	client:reset()
 	 end)
 	 client:on("kill_player",function(lplayer)
 	 id=find_id_player_in_players(lplayer)
@@ -416,7 +421,10 @@ text_for_chat=string.sub(text_for_chat,1,string.len(text_for_chat)-1)
 elseif string.len(key)<2 then
 text_for_chat=text_for_chat .. key
 end
-else
+else 
+if(nearest_build~=nil and key=="u" and nearest_build.type~="negotiation_house" and nearest_build.type~="home") then
+client:send("upgrade_build",nearest_build,client)
+end
 	if (key=="r" or key=="t") and nearest_build~=nil and nearest_build.type=="negotiation_house" then
 		if my_player.relationship[select_relationship_player] ~=nil and (my_player.relationship[select_relationship_player].friend_request==true) then
 		if(key=="r") then
@@ -533,7 +541,22 @@ else
 	  client:send("create_cat",{"woodcutter",nearest_build},client)	end
    end
 end
+function draw_upgrade_icons(x,y,name,lvl) 
+start_y=y
+x=x
+if(lvl==6) then
+return
+end
+for s=1,#all_cost[name][lvl],1 do
+if(all_cost[name][lvl][s]~=0) then
+love.graphics.draw(main_sprite_icon,all_sprites_icons[s],x,y,0,4,4)
 
+love.graphics.print(""..all_cost[name][lvl][s],x+20,y)
+x=x+40
+end
+end
+love.graphics.print("U",x,y)
+end
 function draw_builds()
 for i=1,#all_builds,1 do
 love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type..all_builds[i].lvl],all_builds[i].x,all_builds[i].y,0,4,4)
@@ -639,9 +662,11 @@ end
 end
 function draw_home_icons()
 start_x=nearest_build.x-35
+love.graphics.print("COST:" .. 5+(my_player.count_cats-1),start_x,nearest_build.y+100)
 for i=7,13,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
 start_x=start_x+35
+
 end
 
 end
@@ -755,7 +780,9 @@ cam:draw(function(l,t,w,h)
 
 draw_vegetations()
 draw_builds()
-
+if(nearest_build~=nil and nearest_build.type~="negotiation_house" and nearest_build.type~="home") then
+draw_upgrade_icons(nearest_build.x,nearest_build.y,nearest_build.type,nearest_build.lvl+1)
+end
 if(nearest_build~=nil and nearest_build.type=="home") then
 draw_home_icons()
 elseif(nearest_build~=nil and nearest_build.type=="shop") then

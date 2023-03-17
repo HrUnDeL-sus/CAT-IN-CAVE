@@ -8,10 +8,13 @@ all_shells_in_scene={}
 tick=0
 tick_timer=0
 is_start_game=false
-timer_start_game=10
+timer_start_game=5
+name_winer=""
+timer_to_restart=0
 all_cats_in_scene={}
 all_type_builds={"home","fortress","wall","tower","shop","negotiation_house"}
 names={}
+all_cost={}
 function remove_elements(a)
 b={}
 for i=1,#a,1 do
@@ -235,7 +238,7 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-resources={0,0,0,0,10,50},
+resources={50,50,50,60,50,70},
 priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
@@ -366,6 +369,25 @@ math.randomseed(os.clock())
 	generate_world()
     -- Creating a server on any IP, port 22122
     server = sock.newServer("*", 22122)
+	server:on("upgrade_build",function(build,client)
+	player=all_players_in_scene[find_player_by_id(client:getConnectId())]
+	if(build.lvl+1<6 and build.type~="negotiation_house" and build.type~="home" and player.resources[1]-all_cost[build.type][build.lvl+1][1]>=0 and player.resources[2]-all_cost[build.type][build.lvl+1][2]>=0 
+	and player.resources[3]-all_cost[build.type][build.lvl+1][3]>=0 and player.resources[4]-all_cost[build.type][build.lvl+1][4]>=0 and player.resources[5]-all_cost[build.type][build.lvl+1][5]>=0) then
+	for i=1,#all_cost[build.type][build.lvl+1], 1 do
+		all_players_in_scene[find_player_by_id(client:getConnectId())].resources[i]=all_players_in_scene[find_player_by_id(client:getConnectId())].resources[i]-all_cost[build.type][build.lvl+1][i]
+	id=find_build_by_uid(all_build_in_scene,build.uid)
+	
+	end
+	client:send("update_resources",all_players_in_scene[find_player_by_id(client:getConnectId())].resources)
+	all_build_in_scene[id].lvl=all_build_in_scene[id].lvl+1
+	if(all_build_in_scene[id].type=="wall") then
+	all_build_in_scene[id].hp=200*(all_build_in_scene[id].lvl-1)
+	else
+	all_build_in_scene[id].hp=100*all_build_in_scene[id].lvl
+	end
+	end
+	server:sendToAll("builds",all_build_in_scene)
+	end)
 		server:on("send_friend_request", function(data)
 
 		player_name=data[1]
@@ -457,7 +479,7 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 		server:sendToAll("update_state_game",is_start_game)
 		new_player=create_player(client:getConnectId(),math.random(1000,19000),500)
 		add_player_in_scene(new_player)
-		all_cost={}
+		
 	for i=1,#all_type_builds,1 do
 	all_cost[all_type_builds[i]]=init_update_cost(all_type_builds[i])
 
@@ -503,17 +525,19 @@ if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==
 ltype=data[1]
 lbuild=data[2]
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if(lplayer.resources[6]-5>=0) then
-all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-5
+if(lplayer.resources[6]-(5+(1*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))>=0) then
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-(5+(1*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))
 add_cat_in_scene(create_cat(lbuild.x+math.random(0,100),lbuild.y+65,lbuild.uid_player,ltype))
+
 if(ltype=="miner") then
 all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority[1]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority[1]+1
 end
 table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats,all_cats_in_scene[#all_cats_in_scene])
 distribute_cats_defend(lplayer)
 server:sendToAll("update_cat",convert_server_cat_to_client_cat(all_cats_in_scene[#all_cats_in_scene]))
-lclient:send("get_count_cats",count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())]))
+lclient:send("get_count_cats_miner",count_miner_cats(all_players_in_scene[find_player_by_id(lclient:getConnectId())]))
 lclient:send("get_priority",all_players_in_scene[find_player_by_id(lclient:getConnectId())].priority)
+lclient:send("get_count_cats",#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats)
 lclient:send("update_resources",all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources)
 end
 end)
@@ -1027,9 +1051,11 @@ end
 end
 end
 function active_cat_ai()
+
 for i=1,#all_cats_in_scene,1 do
 if(all_cats_in_scene[i]~=nil) then
 if all_cats_in_scene[i].type=="miner" or all_cats_in_scene[i].type=="woodcutter" then
+
 active_woodcutter_and_miner_ai(all_cats_in_scene[i])
 elseif all_cats_in_scene[i].type=="archer" or all_cats_in_scene[i].type=="sword" then
 active_archer_and_sword_ai( all_cats_in_scene[i])
@@ -1061,15 +1087,17 @@ end
 end
 function end_game()
 count_players_in_game=0
+player=nil
 for i=1,#all_players_in_scene,1 do
 if all_players_in_scene[i].in_game==true then
 count_players_in_game=count_players_in_game+1
+player=all_players_in_scene[i]
 end
 end
-if(is_start_game==true and count_players_in_game<=1) then
-is_start_game=false
-timer_start_game=120
-server:sendToAll("restart_game",nil)
+if(is_start_game==true and count_players_in_game<=1 and timer_to_restart<=0) then
+name_winer=player.name
+timer_to_restart=10
+
 
 
 end
@@ -1084,8 +1112,25 @@ function love.update(dt)
 --draw()
 local result, err =pcall(local_update_server)
 tick=tick+dt
-if(is_start_game==false and #all_players_in_scene>=2) then
 tick_timer=tick_timer+dt
+if(tick_timer>1 and timer_to_restart>0) then
+timer_to_restart=timer_to_restart-1
+print("TIMER:" .. timer_to_restart)
+server:sendToAll("get_message","Player " .. name_winer .. " win!!!")
+if(timer_to_restart==0) then
+is_start_game=false
+timer_start_game=60
+server:sendToAll("restart_game",nil)
+
+
+
+end
+tick_timer=0
+end
+if(is_start_game==false and #all_players_in_scene>=2) then
+
+
+
 if(tick_timer>1) then
 tick_timer=0
 timer_start_game=timer_start_game-1
@@ -1096,7 +1141,7 @@ is_start_game=true
 server:sendToAll("update_state_game",is_start_game)
 end
 else
-timer_start_game=120
+timer_start_game=60
 
 end
 end_game()
