@@ -123,7 +123,7 @@ table_res={}
 if ltype=="woodcutter" then
 table_res={
 amount_resources=0,
-max_amount_resources=2,
+max_amount_resources=1,
 resource_build=nil
 }
 elseif ltype == "miner" then
@@ -238,7 +238,7 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-resources={50,50,50,60,50,70},
+resources={0,0,0,0,10,20},
 priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
@@ -525,8 +525,8 @@ if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==
 ltype=data[1]
 lbuild=data[2]
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if(lplayer.resources[6]-(5+(1*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))>=0) then
-all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-(5+(1*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))
+if(lplayer.resources[6]-(5+math.floor(0.2*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))>=0) then
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-(5+math.floor(0.2*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))
 add_cat_in_scene(create_cat(lbuild.x+math.random(0,100),lbuild.y+65,lbuild.uid_player,ltype))
 
 if(ltype=="miner") then
@@ -754,7 +754,7 @@ else if(find_player_by_uid(cat.uid_player)~=nil) then
 				end
 				if(cat.resource_build.type==10) then
 					pl.resources[5]=pl.resources[5]+cat.amount_resources
-					pl.resources[6]=pl.resources[6]+math.random(0,2)
+					pl.resources[6]=pl.resources[6]+math.random(1,3)
 				end
 				cat.resource_build=nil
 				cat.amount_resources=0

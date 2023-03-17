@@ -662,7 +662,7 @@ end
 end
 function draw_home_icons()
 start_x=nearest_build.x-35
-love.graphics.print("COST:" .. 5+(my_player.count_cats-1),start_x,nearest_build.y+100)
+love.graphics.print("COST:" .. (5+math.floor(0.2*my_player.count_cats)),start_x,nearest_build.y-100)
 for i=7,13,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
 start_x=start_x+35
