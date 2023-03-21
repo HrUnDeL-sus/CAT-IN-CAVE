@@ -1,5 +1,6 @@
 local sock = require "sock"
 local camera = require "gamera"
+local utf8 = require("utf8")
 my_player={x=0}
 player_animator={}
 cat_miner_animator={}
@@ -31,6 +32,8 @@ index_cat_bg=0
 nearest_build=nil
 all_cost=nil
 has_house=false
+main_text=""
+is_genocide=false
 timer_start_game=60
 is_start_game=true
 -- client.lua
@@ -142,11 +145,11 @@ end
 function init_icons()
 main_sprite_icon=love.graphics.newImage("icons.png")
 main_sprite_icon:setFilter("linear", "nearest")
-for i=1,14,1 do
+for i=1,13,1 do
 all_sprites_icons[i]=love.graphics.newQuad(4*(i-1),0,4,4,main_sprite_icon)
 
 end
-for i=14,23,1 do
+for i=14,24,1 do
 all_sprites_icons[i]=love.graphics.newQuad(8*(i-14),8,8,8,main_sprite_icon)
 end
 end
@@ -161,9 +164,6 @@ all_sprites_build["fortress"..i]=love.graphics.newQuad(32*(i-1),32,32,32,main_sp
 end
 for i=1,5,1 do
 all_sprites_build["wall"..i]=love.graphics.newQuad(32*(i-1),32*3,32,32,main_sprite_build)
-end
-for i=1,5,1 do
-all_sprites_build["tower"..i]=love.graphics.newQuad(32*(i-1),32*4,32,32,main_sprite_build)
 end
 all_sprites_build["negotiation_house1"]=love.graphics.newQuad(0,32*2,32,32,main_sprite_build)
 end
@@ -198,7 +198,7 @@ lplayer=nil
 id=find_id_player_in_players(player)
 
 if(id==-1) then
-	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,false)
+	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build)
 
 table.insert(all_players,lplayer)
 
@@ -210,8 +210,9 @@ else
 all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build)
 
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
-my_player.has_build=all_players[id].has_build
+
  if(my_player.name==all_players[id].name) then
+ my_player.has_build=all_players[id].has_build
 	 all_players[id]=my_player
 
 end
@@ -253,6 +254,22 @@ end
 return -1
 end
 function init_client_requests()
+client:on("create_audio",function(ltype)
+
+audio=love.audio.newSource(ltype..".wav", "static")
+
+audio:play()
+
+end)
+client:on("create_audio_position",function(data)
+x=data[1]
+ltype=data[2]
+audio=love.audio.newSource(ltype..".wav", "static")
+print("POSITION:" ..  -(my_player.x-x))
+audio:setPosition(-(my_player.x-x), 0, 0 )
+audio:play()
+
+end)
 		client:on("update_timer", function(value)
 	timer_start_game=value
 	end)
@@ -278,6 +295,8 @@ table.remove(all_msg_in_chat,1)
 end
 
 end)
+
+
 client:on("update_state_game",function(state)
 is_start_game=state
 
@@ -344,8 +363,18 @@ end)
 
 endfunction init_cats()for i=1,#all_type_cats,1 docats_main_sprites[all_type_cats[i]]=love.graphics.newImage(all_type_cats[i] .."_cat.png")
 cats_main_sprites[all_type_cats[i]]:setFilter("linear", "nearest")endend
+
+function load_audio()
+love.audio.setPosition(0, 1, 0)
+music_audio=love.audio.newSource("music.wav","stream")
+end_audio=love.audio.newSource("end.wav","stream")
+
+music_audio:setLooping(true)
+music_audio:stop()
+end
 function love.load()
 math.randomseed(os.clock())	
+load_audio()
 	font = love.graphics.newFont("Pixtile.ttf", 15)
 	love.graphics.setFont(font)
 	cat_image = love.graphics.newImage("cat.png")
@@ -402,6 +431,10 @@ if(my_player.animator~=nil) then
    end
 end
 end
+function convert_key_to_rus(key)
+switch()
+
+end
 function love.keypressed( key )
  if key=="tab" then
    if chat_is_active==true then
@@ -434,7 +467,13 @@ end
 		end
 		else
 				if(key=="r") then
-		client:send("send_friend_request",{my_player.name,select_relationship_player})
+		if(my_player.relationship[select_relationship_player] ==nil or my_player.relationship[select_relationship_player].state~=1) then
+		
+			client:send("send_friend_request",{my_player.name,select_relationship_player})
+		else
+		client:send("send_present",select_relationship_player,client)
+		end
+	
 		else
 		client:send("attack_player_request",{my_player.name,select_relationship_player})
 		end
@@ -504,7 +543,7 @@ end
 	end
     if key == "3" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
-    client:send("create_cat",{"assassin",nearest_build},client)
+    client:send("create_cat",{"shield",nearest_build},client)
 	elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=3
     elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") and (#all_players>2) then
@@ -515,30 +554,28 @@ end
    end
     if key == "4" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
-      client:send("create_cat",{"shield",nearest_build},client)
+      client:send("create_cat",{"priest",nearest_build},client)
    elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=4
    elseif(nearest_build~=nil and nearest_build.type=="negotiation_house") and (#all_players>3) then
    select_relationship=4
    else
-    client:send("create_build","tower",client)
+    client:send("create_build","negotiation_house",client)
 		end
    end
     if key == "5" then
 	     if(nearest_build~=nil and nearest_build.type=="home") then
-    client:send("create_cat",{"priest",nearest_build},client)
+    client:send("create_cat",{"miner",nearest_build},client)
 	 elseif(nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=5
    else
-    client:send("create_build","negotiation_house",client)
 		end
    end
 	if key=="6" and nearest_build~=nil and nearest_build.type=="home" then
-	  client:send("create_cat",{"miner",nearest_build},client)	end
+	  client:send("create_cat",{"woodcutter",nearest_build},client)	end
 	if  key=="6" and (nearest_build~=nil and nearest_build.type=="fortress") then
    select_priotiry=6
-   end	if key=="7" and nearest_build~=nil and nearest_build.type=="home" then
-	  client:send("create_cat",{"woodcutter",nearest_build},client)	end
+   end
    end
 end
 function draw_upgrade_icons(x,y,name,lvl) 
@@ -604,7 +641,11 @@ if(all_players[i].name~=my_player.name) then
 if(my_player.relationship[all_players[i].name]==nil or my_player.relationship[all_players[i].name].friend_request==false) then
 --if(my_player.relationship[all_players[i].name]~=nil and my_player.relationship[all_players[i].name].state==0) or (my_player.relationship[all_players[i].name]==nil) then
 start_x=start_x+40
+if(my_player.relationship[all_players[i].name]==nil or my_player.relationship[all_players[i].name].state~=1) then
 love.graphics.draw(main_sprite_icon,all_sprites_icons[17],start_x,start_y,0,3,3)
+else
+love.graphics.draw(main_sprite_icon,all_sprites_icons[23],start_x,start_y,0,3,3)
+end
 --end
 start_x=start_x+40
 love.graphics.draw(main_sprite_icon,all_sprites_icons[18],start_x,start_y,0,3,3)
@@ -629,7 +670,8 @@ end
 end
 end
 function connect_client()
- client = sock.newClient("88.85.171.249", 22122)
+ --client = sock.newClient("88.85.171.249", 22122)
+client = sock.newClient("192.168.0.12", 22122)
 
   init_client_requests()
 
@@ -663,7 +705,7 @@ end
 function draw_home_icons()
 start_x=nearest_build.x-35
 love.graphics.print("COST:" .. (5+math.floor(0.2*my_player.count_cats)),start_x,nearest_build.y-100)
-for i=7,13,1 do
+for i=7,12,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
 start_x=start_x+35
 
@@ -682,10 +724,10 @@ function draw_shop_builds()
 if(all_cost~=nil) then
 x=1
 
-names={"home","fortress","wall","tower","negotiation_house"}
+names={"home","fortress","wall","negotiation_house"}
 
 for i=1,#names,1 do
-if(has_house==true) or (has_house==false and names[i]=="fortress") then
+if(my_player.has_build==true) or (my_player.has_build==false and names[i]=="fortress") then
 love.graphics.draw(main_sprite_build,all_sprites_build[names[i].."1"],90+(x*50),0,0,2,2)
 q=0
 for s=1,#all_cost[names[i]][1],1 do
@@ -704,7 +746,7 @@ end
 end
 
 function draw_gui()
-
+love.graphics.print(main_text,300,300)
 draw_chat()
 if(my_player.in_game==true) then
 draw_icons()
@@ -766,7 +808,9 @@ if(is_start_game==false) then
 draw_lobby()
 return 0
 end
-
+if(music_audio:isPlaying()==false) then
+music_audio:play()
+end
 key_is_press()
 
 cam:setPosition(my_player.x, 0)
@@ -812,18 +856,24 @@ end)
 draw_gui()
 
 end
-
+timer_genocide=250
+tick_genocide=0
 function love.update(dt)
+tick_genocide=tick_genocide+dt
 tick=tick+dt
 client:update()
-
+if(tick_genocide>1 and is_genocide) then
+tick_genocide=0
+timer_genocide=timer_genocide-1
+main_text="Total fucked up in " .. timer_genocide .. " seconds."
+end
 if(tick>=10 and is_start_game==false) then
 tick=0
 index_cat_bg=index_cat_bg+1
 if(index_cat_bg==101) then
 index_cat_bg=1
 end
-bg_lobby_image=love.graphics.newImage("cat"..index_cat_bg..".png")
+bg_lobby_image=love.graphics.newImage("cat"..index_cat_bg..".jpg")
 
 end
 nearest_build=find_nearest_build()

@@ -238,7 +238,7 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-resources={0,0,0,0,10,20},
+resources={1000,1000,1000,1000,1000,2000},
 priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
@@ -279,12 +279,20 @@ end
 end
 end
 function can_place_build_in_position(pl)
+size_min=100000
 for i=1,#all_build_in_scene,1 do
-if (math.abs(all_build_in_scene[i].x-pl.x)<100 and all_build_in_scene[i].uid_player==pl.uid) or (math.abs(all_build_in_scene[i].x-pl.x)<500 and all_build_in_scene[i].uid_player~=pl.uid)  then
+if(all_build_in_scene[i].uid_player==pl.uid) and math.abs(all_build_in_scene[i].x-pl.x)<size_min then
+size_min=math.abs(all_build_in_scene[i].x-pl.x)
+end  
+if (math.abs(all_build_in_scene[i].x-pl.x)<200 and all_build_in_scene[i].uid_player==pl.uid) or (math.abs(all_build_in_scene[i].x-pl.x)<500 and all_build_in_scene[i].uid_player~=pl.uid) then
 return false
 end
 end
+if(size_min>500 and pl.has_build==true) then
+return false
+else
 return true
+end
 end
 function generate_world()
 x=0
@@ -378,6 +386,8 @@ math.randomseed(os.clock())
 	id=find_build_by_uid(all_build_in_scene,build.uid)
 	
 	end
+	
+	client:send("create_audio","powerup")
 	client:send("update_resources",all_players_in_scene[find_player_by_id(client:getConnectId())].resources)
 	all_build_in_scene[id].lvl=all_build_in_scene[id].lvl+1
 	if(all_build_in_scene[id].type=="wall") then
@@ -399,6 +409,20 @@ math.randomseed(os.clock())
 	pl2=all_players_in_scene[find_player_by_name(player_name2)]
 	all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={state=0,friend_request=true}
 	server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client):send("get_relationship",all_players_in_scene[find_player_by_name(player_name2)].relationship)
+	end)
+	server:on("send_present",function(player_name2,lclient)
+		if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==false) then
+		return
+		end
+		pl1=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
+	pl2=all_players_in_scene[find_player_by_name(player_name2)]
+	if(pl1.resources[6]>=5) then
+	all_players_in_scene[find_player_by_name(player_name2)].resources[6]=all_players_in_scene[find_player_by_name(player_name2)].resources[6]+5
+	all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-5
+	client1=server:getClientByConnectId(all_players_in_scene[find_player_by_name(player_name2)].connect_id_client)
+	client1:send("update_resources",all_players_in_scene[find_player_by_name(player_name2)].resources)
+	lclient:send("update_resources",all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources)
+	end
 	end)
 	server:on("attack_player_request", function(data)
 		player_name=data[1]
@@ -555,6 +579,7 @@ end
 add_build_in_scene(create_build(lplayer.x,lplayer.y-65,lplayer.uid,ltype))
 table.insert(all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_builds,all_build_in_scene[#all_build_in_scene])
 server:sendToAll("builds",all_build_in_scene)
+lclient:send("create_audio","create_build")
 end
 
 end)
@@ -822,6 +847,7 @@ if(cat.x>nearest_enemy.x) then
 move_x=-10
 end
 if(cat.period>=cat.max_period) then
+server:sendToAll("create_audio_position",{cat.x,"arrow"})
 
 table.insert(all_shells_in_scene,create_sheel(cat,1,move_x))
 cat.period=0
@@ -933,7 +959,7 @@ if(cat.x>bld_nearest.x) then
 move_x=-10
 end
 if(cat.period>=cat.max_period) then
-
+server:sendToAll("create_audio_position",{cat.x,"shell"})
 table.insert(all_shells_in_scene,create_sheel(cat,2,move_x))
 cat.period=0
 end
@@ -970,6 +996,7 @@ end
 end
 end
 function remove_shell(id)
+server:sendToAll("create_audio_position",{all_shells_in_scene[id].x,"hit"})
 table.remove(all_shells_in_scene,id)
 end
 function remove_cat(cat)
@@ -1041,6 +1068,7 @@ id_bld=find_nearest_build(all_build_in_scene,all_shells_in_scene[i].x,nil)
  
 if(id_bld~=nil and math.abs(all_build_in_scene[id_bld].x-all_shells_in_scene[i].x)<20) and all_build_in_scene[id_bld].uid_player==all_shells_in_scene[i].target_player.uid then
 damage_build(all_build_in_scene[id_bld],5)
+
 remove_shell(i)  
 elseif(nearest_cat~=nil and math.abs(nearest_cat.x-all_shells_in_scene[i].x)<20) then
 damage_cat(nearest_cat,10)
@@ -1110,7 +1138,9 @@ end
 end
 function love.update(dt)
 --draw()
+
 local result, err =pcall(local_update_server)
+
 tick=tick+dt
 tick_timer=tick_timer+dt
 if(tick_timer>1 and timer_to_restart>0) then
@@ -1119,7 +1149,7 @@ print("TIMER:" .. timer_to_restart)
 server:sendToAll("get_message","Player " .. name_winer .. " win!!!")
 if(timer_to_restart==0) then
 is_start_game=false
-timer_start_game=60
+timer_start_game=10
 server:sendToAll("restart_game",nil)
 
 
@@ -1141,7 +1171,7 @@ is_start_game=true
 server:sendToAll("update_state_game",is_start_game)
 end
 else
-timer_start_game=60
+timer_start_game=10
 
 end
 end_game()
