@@ -18,6 +18,8 @@ all_builds={}cats_main_sprites={}
 all_vegetations={}
 all_sprites_build={}
 all_sprites_icons={}
+all_heart_sprites={}
+
 bg_lobby_images={}
 all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
 chat_is_active=false
@@ -152,6 +154,16 @@ end
 for i=14,24,1 do
 all_sprites_icons[i]=love.graphics.newQuad(8*(i-14),8,8,8,main_sprite_icon)
 end
+end
+function init_heart_sprites()
+print("DWWDWDS")
+main_heart_sprite=love.graphics.newImage("heart.png")
+main_heart_sprite:setFilter("linear", "nearest")
+for i=1,10,1 do
+all_heart_sprites[i]=love.graphics.newQuad(16*(i-1),0,16,16,main_heart_sprite)
+end
+
+
 end
 function init_build_sprites()
 main_sprite_build=love.graphics.newImage("builds.png")
@@ -379,7 +391,7 @@ load_audio()
 	love.graphics.setFont(font)
 	cat_image = love.graphics.newImage("cat.png")
 	cat_image:setFilter("linear", "nearest")
-
+	init_heart_sprites()
 	init_build_sprites()
 	load_backgrounds()
 	init_icons()
@@ -594,10 +606,42 @@ end
 end
 love.graphics.print("U",x,y)
 end
+function draw_hearts(lx,ly,lhp)
+if(lhp<=0) then
+return
+end
+
+end_index=math.ceil(lhp/100)
+for index=1,end_index,1 do
+
+if(index~=end_index) then
+love.graphics.draw(main_heart_sprite,all_heart_sprites[1],lx+((index-1)*20),ly+20)
+elseif(index==end_index and index==1) then
+if(11-math.floor((lhp)/10)==0) then
+love.graphics.draw(main_heart_sprite,all_heart_sprites[1],lx+((index-1)*20),ly+20)
+elseif(11-math.floor((lhp)/10)==11) then
+love.graphics.draw(main_heart_sprite,all_heart_sprites[10],lx+((index-1)*20),ly+20)
+else
+love.graphics.draw(main_heart_sprite,all_heart_sprites[11-math.floor((lhp)/10)],lx+((index-1)*20),ly+20)
+end
+else
+if(11-(math.floor((lhp-((end_index-1)*100))/10))==0) then
+love.graphics.draw(main_heart_sprite,all_heart_sprites[1],lx+((index-1)*20),ly+20)
+elseif(11-(math.floor((lhp-((end_index-1)*100))/10))==11) then
+love.graphics.draw(main_heart_sprite,all_heart_sprites[10],lx+((index-1)*20),ly+20)
+else
+love.graphics.draw(main_heart_sprite,all_heart_sprites[11-(math.floor((lhp-((end_index-1)*100))/10))],lx+((index-1)*20),ly+20)
+end
+end
+end
+
+end
 function draw_builds()
 for i=1,#all_builds,1 do
 love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type..all_builds[i].lvl],all_builds[i].x,all_builds[i].y,0,4,4)
-love.graphics.print("HP:" .. all_builds[i].hp,all_builds[i].x,all_builds[i].y+20)
+
+draw_hearts(all_builds[i].x,all_builds[i].y,all_builds[i].hp)
+
 end
 
 end
@@ -671,7 +715,7 @@ end
 end
 function connect_client()
  --client = sock.newClient("88.85.171.249", 22122)
-client = sock.newClient("192.168.0.12", 22122)
+client = sock.newClient("192.168.0.11", 22122)
 
   init_client_requests()
 
@@ -771,12 +815,13 @@ for i=1,#all_shells,1 do
 love.graphics.draw(main_sprite_shell,all_sprites_shells[all_shells[i].type], all_shells[i].x,all_shells[i].y,0,4,4)
 end
 endfunction draw_cats()for i=1,#all_cats,1 do
-love.graphics.print("HP:" .. all_cats[i].hp,all_cats[i].x,all_cats[i].y+60)
+
 if(all_cats[i].is_mirror==true) thendraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)
 
 else
 draw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,4,4)
-endendend
+end
+draw_hearts(all_cats[i].x-20,all_cats[i].y-40,all_cats[i].hp)endend
 function reconect_client()
 client:connect()
 end

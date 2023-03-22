@@ -136,6 +136,7 @@ type_miner=1
 elseif ltype=="shield" or ltype=="priest" then
 if(ltype=="shield") then
 main_table.speed=7
+main_table.hp=200
 end
 table_res={
 target_player=nil,
