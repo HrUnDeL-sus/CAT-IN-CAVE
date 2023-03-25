@@ -1,6 +1,8 @@
 local sock = require "sock"
 local camera = require "gamera"
 local utf8 = require("utf8")
+draw_help_id=false
+timer_help_id=10
 my_player={x=0}
 player_animator={}
 cat_miner_animator={}
@@ -104,7 +106,7 @@ end
 end
 return nil
 end
-function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build)
+function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build,lhas_timofei)
 lin_game=true
 if(is_start_game==true) then
 lin_game=false
@@ -123,7 +125,8 @@ count_cats_miner=0,
 relationship={},
 in_game=lin_game,
 has_build=hhas_build,
-count_cats=1
+count_cats=1,
+has_timofei=lhas_timofei
 }
 
 end
@@ -156,7 +159,7 @@ all_sprites_icons[i]=love.graphics.newQuad(8*(i-14),8,8,8,main_sprite_icon)
 end
 end
 function init_heart_sprites()
-print("DWWDWDS")
+
 main_heart_sprite=love.graphics.newImage("heart.png")
 main_heart_sprite:setFilter("linear", "nearest")
 for i=1,10,1 do
@@ -210,7 +213,7 @@ lplayer=nil
 id=find_id_player_in_players(player)
 
 if(id==-1) then
-	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build)
+	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build,player.has_timofei)
 
 table.insert(all_players,lplayer)
 
@@ -219,12 +222,13 @@ select_current_cat_animation_from_server(all_players[#all_players],player.curren
 
 else
 
-all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build)
+all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build,player.has_timofei)
 
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
 
  if(my_player.name==all_players[id].name) then
  my_player.has_build=all_players[id].has_build
+ my_player.has_timofei=all_players[id].has_timofei
 	 all_players[id]=my_player
 
 end
@@ -266,20 +270,29 @@ end
 return -1
 end
 function init_client_requests()
+client:on("pizdec",function()
+music_audio2:play()
+music_audio:stop()
+end)
+client:on("help_id",function()
+draw_help_id=true
+timer_help_id=10
+end)
 client:on("create_audio",function(ltype)
 
-audio=love.audio.newSource(ltype..".wav", "static")
+--audio=love.audio.newSource(ltype..".wav", "static")
 
-audio:play()
+--audio:play()
 
 end)
 client:on("create_audio_position",function(data)
+
 x=data[1]
 ltype=data[2]
-audio=love.audio.newSource(ltype..".wav", "static")
-print("POSITION:" ..  -(my_player.x-x))
-audio:setPosition(-(my_player.x-x), 0, 0 )
-audio:play()
+--audio=love.audio.newSource(ltype..".wav", "static")
+--print("POSITION:" ..  -(my_player.x-x))
+--audio:setPosition(-(my_player.x-x), 0, 0 )
+--audio:play()
 
 end)
 		client:on("update_timer", function(value)
@@ -378,9 +391,9 @@ cats_main_sprites[all_type_cats[i]]:setFilter("linear", "nearest")endend
 
 function load_audio()
 love.audio.setPosition(0, 1, 0)
-music_audio=love.audio.newSource("music.wav","stream")
-end_audio=love.audio.newSource("end.wav","stream")
-
+music_audio=love.audio.newSource("music.mp3","stream")
+music_audio2=love.audio.newSource("music2.mp3","stream")
+music_audio2:stop()
 music_audio:setLooping(true)
 music_audio:stop()
 end
@@ -389,7 +402,11 @@ math.randomseed(os.clock())
 load_audio()
 	font = love.graphics.newFont("Pixtile.ttf", 15)
 	love.graphics.setFont(font)
+	
+	
 	cat_image = love.graphics.newImage("cat.png")
+	timofei_sprite=love.graphics.newImage("cat_palka.png")
+	timofei_sprite:setFilter("linear", "nearest")
 	cat_image:setFilter("linear", "nearest")
 	init_heart_sprites()
 	init_build_sprites()
@@ -714,8 +731,8 @@ end
 end
 end
 function connect_client()
- --client = sock.newClient("88.85.171.249", 22122)
-client = sock.newClient("192.168.0.11", 22122)
+ client = sock.newClient("88.85.171.249", 22122)
+--client = sock.newClient("192.168.0.12", 22122)
 
   init_client_requests()
 
@@ -840,6 +857,9 @@ love.graphics.print("Game will start in " .. timer_start_game,200,60)
 love.graphics.print("Index:" .. index_cat_bg,200,90)
 end
 function love.draw()
+if(music_audio:isPlaying()==false and not music_audio2:isPlaying()) then
+music_audio:play()
+end
 if(client:isConnecting() or client:isDisconnected()) then
 draw_connecting()
 if(client:isDisconnected()) then
@@ -853,9 +873,7 @@ if(is_start_game==false) then
 draw_lobby()
 return 0
 end
-if(music_audio:isPlaying()==false) then
-music_audio:play()
-end
+
 key_is_press()
 
 cam:setPosition(my_player.x, 0)
@@ -886,9 +904,14 @@ if(all_players~=nil)then
   for i=1,#all_players,1 do
   	love.graphics.print("Name:" .. all_players[i].name,all_players[i].x,all_players[i].y-100)
   if all_players[i].is_mirror==true then
-
+  if(all_players[i].has_timofei) then
+love.graphics.draw(timofei_sprite,all_players[i].x+25,all_players[i].y-80,0,-0.1,0.1)
+end
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
    else 
+    if(all_players[i].has_timofei) then
+   	love.graphics.draw(timofei_sprite,all_players[i].x-25,all_players[i].y-80,0,0.1,0.1)
+	end
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,4,4)
    end
 
@@ -899,13 +922,25 @@ if(all_players~=nil)then
 end)
 
 draw_gui()
-
+if(draw_help_id==true) then
+font = love.graphics.newFont("Pixtile.ttf", 64)
+	love.graphics.setFont(font)
+love.graphics.print("HELP_ID",200,200)
+font = love.graphics.newFont("Pixtile.ttf", 15)
+	love.graphics.setFont(font)
+end
 end
 timer_genocide=250
 tick_genocide=0
 function love.update(dt)
 tick_genocide=tick_genocide+dt
 tick=tick+dt
+if(draw_help_id==true) then
+timer_help_id=timer_help_id-dt
+if(timer_help_id<0) then
+draw_help_id=false
+end
+end
 client:update()
 if(tick_genocide>1 and is_genocide) then
 tick_genocide=0

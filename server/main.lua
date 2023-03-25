@@ -1,10 +1,13 @@
-require "enet"
+ require "enet"
 local socket=require'socket'
 local sock = require "sock"
 all_players_in_scene={}
 all_build_in_scene={}
 all_vegetation_in_scene={}
 all_shells_in_scene={}
+cheat_code1="xdwsfgevlfiosw1231"
+help_id_code="helpunderscoreid"
+pizdec_code="4positionsofbruno"
 tick=0
 tick_timer=0
 is_start_game=false
@@ -41,9 +44,9 @@ for line in f:lines() do
 table.insert(names,line)
 
 end
-print("L:" .. #names)
+
 names= remove_elements(names)
-print("L2:" .. #names)
+
 end
 function create_random_vegetation(lx)
 ly=520
@@ -172,14 +175,14 @@ animator=nil,
 anim=cat.anim,
 is_mirror=cat.is_mirror,
 hp=cat.hp,
-has_build=cat.has_build
-
+has_build=cat.has_build,
+has_timofei=cat.has_timofei
 }
 
 end
 function kill_player(player)
 id=find_player_by_name(player.name)
-print("ID:"..id)
+
 while all_players_in_scene[id].my_cats~=nil and all_players_in_scene[id].my_cats[1]~=nil do
 damage_cat(all_players_in_scene[id].my_cats[1],10000000000000)
 end
@@ -245,7 +248,8 @@ my_builds={},
 my_cats={},
 relationship={},
 in_game=lin_game,
-has_build=false
+has_build=false,
+has_timofei=false
 }
 end
 function add_cat_in_scene(cat)
@@ -369,6 +373,7 @@ end
 
 end
 function send_msg_to_all(msg)
+print(msg)
 server:sendToAll("get_message",msg)
 end
 function love.load()
@@ -469,7 +474,20 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 	end)
 	
 	server:on("send_msg",function(msg,client)
+	if(msg==cheat_code1) then
+	print(all_players_in_scene[find_player_by_id(client:getConnectId())].name.." summon timofei")
+	all_players_in_scene[find_player_by_id(client:getConnectId())].has_timofei=true
+	send_player(all_players_in_scene[find_player_by_id(client:getConnectId())])
+	elseif(msg==help_id_code) then
+	print(all_players_in_scene[find_player_by_id(client:getConnectId())].name.." summon help_id")
+	client:send("help_id")
+	elseif(msg==pizdec_code) then
+	print(all_players_in_scene[find_player_by_id(client:getConnectId())].name.." summon 4positionsofbruno")
+	client:send("pizdec")
+	else
+	
 	send_msg_to_all(all_players_in_scene[find_player_by_id(client:getConnectId())].name .. ":" .. msg)
+	end
 	end)
 	server:on("get_player_server", function (player,client)
 	
@@ -528,7 +546,6 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 		send_player(new_player)
 		end
 	--	add_object_in_scene()
-		print("Count clients:"..#all_players_in_scene)
 end)
 server:on("send_priority", function(priority,lclient)
 if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==false) then
@@ -627,7 +644,8 @@ is_mirror=player.is_mirror,
 uid=-1,
 count_cats=0,
 in_game=player.in_game,
-has_build=player.has_build
+has_build=player.has_build,
+has_timofei=player.has_timofei
 }
 
 end
@@ -916,7 +934,6 @@ pl=find_player_by_uid(all_build_in_scene[id_build].uid_player)
 remove_build(id_build)
 kill_player(pl)
 else
-print("DESTROYYYYYYY")
 remove_build(id_build)
 end
 end
@@ -1101,7 +1118,7 @@ end
 function remove_players()
 for i=1,#all_players_in_scene,1 do
 if(server:getClientByConnectId(all_players_in_scene[i].connect_id_client)==nil) then
-print("USE:" .. i)
+
 kill_player(all_players_in_scene[i])
 return 1
 end
@@ -1133,7 +1150,7 @@ end
 end
 function draw()
 for i=1,#all_players_in_scene,1 do
-print(all_players_in_scene[i] .. ":" .. tostring(all_players_in_scene[i].in_game))
+
 end
 
 end
@@ -1150,7 +1167,7 @@ print("TIMER:" .. timer_to_restart)
 server:sendToAll("get_message","Player " .. name_winer .. " win!!!")
 if(timer_to_restart==0) then
 is_start_game=false
-timer_start_game=10
+timer_start_game=60
 server:sendToAll("restart_game",nil)
 
 
@@ -1172,7 +1189,7 @@ is_start_game=true
 server:sendToAll("update_state_game",is_start_game)
 end
 else
-timer_start_game=10
+timer_start_game=60
 
 end
 end_game()
