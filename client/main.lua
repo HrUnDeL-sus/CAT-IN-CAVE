@@ -21,6 +21,8 @@ all_vegetations={}
 all_sprites_build={}
 all_sprites_icons={}
 all_heart_sprites={}
+all_fractions_sprites={}
+
 
 bg_lobby_images={}
 all_sprites_vegetation={}all_type_cats={"archer","sword","woodcutter","miner","shield","assassin","priest"}
@@ -106,7 +108,7 @@ end
 end
 return nil
 end
-function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build,lhas_timofei)
+function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build,lhas_timofei,lindex_fract)
 lin_game=true
 if(is_start_game==true) then
 lin_game=false
@@ -126,7 +128,8 @@ relationship={},
 in_game=lin_game,
 has_build=hhas_build,
 count_cats=1,
-has_timofei=lhas_timofei
+has_timofei=lhas_timofei,
+index_fract=lindex_fract
 }
 
 end
@@ -213,7 +216,8 @@ lplayer=nil
 id=find_id_player_in_players(player)
 
 if(id==-1) then
-	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build,player.has_timofei)
+	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build,player.has_timofei,player.fraction_id)
+
 
 table.insert(all_players,lplayer)
 
@@ -222,12 +226,13 @@ select_current_cat_animation_from_server(all_players[#all_players],player.curren
 
 else
 
-all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build,player.has_timofei)
+all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build,player.has_timofei,player.fraction_id)
 
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
 
  if(my_player.name==all_players[id].name) then
  my_player.has_build=all_players[id].has_build
+  my_player.index_fract=all_players[id].index_fract
  my_player.has_timofei=all_players[id].has_timofei
 	 all_players[id]=my_player
 
@@ -388,7 +393,23 @@ end)
 
 endfunction init_cats()for i=1,#all_type_cats,1 docats_main_sprites[all_type_cats[i]]=love.graphics.newImage(all_type_cats[i] .."_cat.png")
 cats_main_sprites[all_type_cats[i]]:setFilter("linear", "nearest")endend
+function init_fractions()
+fraction_main=love.graphics.newImage("factions.png")
+	fraction_main:setFilter("linear", "nearest")
+q=0;
+for x=1,16,1 do
+for y=1,3,1 do
+all_fractions_sprites[q]=love.graphics.newQuad(32*(x-1),32*(y-1),32,32,fraction_main)
+q=q+1
+end
 
+end
+q=q+1
+all_fractions_sprites[q]=love.graphics.newQuad(0,32*2,32,32,fraction_main)
+q=q+1
+all_fractions_sprites[q]=love.graphics.newQuad(32,32*2,32,32,fraction_main)
+
+end
 function load_audio()
 love.audio.setPosition(0, 1, 0)
 music_audio=love.audio.newSource("music.mp3","stream")
@@ -414,6 +435,7 @@ load_audio()
 	init_icons()
 	init_shells()
 	init_cats()
+	init_fractions()
 	init_vegetation_sprites()
 	platform_image=love.graphics.newImage("platform.png")
 	 background_image=love.graphics.newImage("bg.jpg")
@@ -731,8 +753,8 @@ end
 end
 end
 function connect_client()
- client = sock.newClient("88.85.171.249", 22122)
---client = sock.newClient("192.168.0.12", 22122)
+ --client = sock.newClient("88.85.171.249", 22122)
+client = sock.newClient("192.168.0.12", 22122)
 
   init_client_requests()
 
@@ -856,6 +878,12 @@ love.graphics.print("Count cats in lobby:" .. #all_players,200,30)
 love.graphics.print("Game will start in " .. timer_start_game,200,60)
 love.graphics.print("Index:" .. index_cat_bg,200,90)
 end
+function draw_fraction(x,y,id)
+if(id~=-1) then
+
+love.graphics.draw(fraction_main,all_fractions_sprites[id], x,y-40,0,1,1)
+end
+end
 function love.draw()
 if(music_audio:isPlaying()==false and not music_audio2:isPlaying()) then
 music_audio:play()
@@ -903,11 +931,13 @@ end
 if(all_players~=nil)then
   for i=1,#all_players,1 do
   	love.graphics.print("Name:" .. all_players[i].name,all_players[i].x,all_players[i].y-100)
+	 draw_fraction(all_players[i].x,all_players[i].y,all_players[i].index_fract)
   if all_players[i].is_mirror==true then
   if(all_players[i].has_timofei) then
 love.graphics.draw(timofei_sprite,all_players[i].x+25,all_players[i].y-80,0,-0.1,0.1)
 end
    draw_animator(all_players[i].animator,all_players[i].x,all_players[i].y,-4,4)
+  
    else 
     if(all_players[i].has_timofei) then
    	love.graphics.draw(timofei_sprite,all_players[i].x-25,all_players[i].y-80,0,0.1,0.1)

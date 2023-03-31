@@ -176,7 +176,8 @@ anim=cat.anim,
 is_mirror=cat.is_mirror,
 hp=cat.hp,
 has_build=cat.has_build,
-has_timofei=cat.has_timofei
+has_timofei=cat.has_timofei,
+fraction_id=cat.index_fraction
 }
 
 end
@@ -242,14 +243,15 @@ uid=random_string(9),
 connect_id_client=client_id,
 current_animation="",
 is_mirror=false,
-resources={1000,1000,1000,1000,1000,2000},
+resources={0,0,0,0,10,20},
 priority={0,0,0,0,50,50},
 my_builds={},
 my_cats={},
 relationship={},
 in_game=lin_game,
 has_build=false,
-has_timofei=false
+has_timofei=false,
+index_fraction=-1
 }
 end
 function add_cat_in_scene(cat)
@@ -275,6 +277,23 @@ return i
 end
 end
 return -1
+end
+function has_fraction(id)
+for i=1,#all_players_in_scene,1 do
+if(all_players_in_scene[i].index_fraction==id) then
+return true
+end
+end
+return false
+end
+function set_fraction(cat)
+id=math.random(1,31)
+while(has_fraction(id)) do
+id=math.random(1,31)
+
+end
+cat.index_fraction=id
+send_player(cat)
 end
 function find_player_by_id(id)
 for i=1,#all_players_in_scene,1 do
@@ -521,8 +540,11 @@ all_players_in_scene[find_player_by_name(player_name2)].relationship[pl1.name]={
 		
 		server:sendToAll("update_state_game",is_start_game)
 		new_player=create_player(client:getConnectId(),math.random(1000,19000),500)
+			if(is_start_game==false) then
+			set_fraction(new_player)
+			end
 		add_player_in_scene(new_player)
-		
+	
 	for i=1,#all_type_builds,1 do
 	all_cost[all_type_builds[i]]=init_update_cost(all_type_builds[i])
 
@@ -631,6 +653,7 @@ player.y=player2.y
 player.name=player2.name
 player.current_animation=player2.current_animation
 player.is_mirror=player2.is_mirror
+player.index_fraction=player.index_fraction
 return player
 end
 function convert_server_player_to_client_player(player)
@@ -645,7 +668,8 @@ uid=-1,
 count_cats=0,
 in_game=player.in_game,
 has_build=player.has_build,
-has_timofei=player.has_timofei
+has_timofei=player.has_timofei,
+fraction_id=player.index_fraction
 }
 
 end
@@ -1167,7 +1191,7 @@ print("TIMER:" .. timer_to_restart)
 server:sendToAll("get_message","Player " .. name_winer .. " win!!!")
 if(timer_to_restart==0) then
 is_start_game=false
-timer_start_game=60
+timer_start_game=10
 server:sendToAll("restart_game",nil)
 
 
@@ -1189,7 +1213,7 @@ is_start_game=true
 server:sendToAll("update_state_game",is_start_game)
 end
 else
-timer_start_game=60
+timer_start_game=10
 
 end
 end_game()
