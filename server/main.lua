@@ -68,36 +68,36 @@ if(ltype=="home") then
 return { 
 {0,0,0,0,1},
 {5,0,0,0,0},
-{10,5,0,0,0},
-{10,10,5,0,0},
-{10,10,10,5,0}
+{20,5,0,0,0},
+{80,30,5,0,0},
+{320,180,75,5,0}
 }
 end
 if(ltype=="wall") then
 return { 
 {0,0,0,0,1},
 {5,0,0,0,0},
-{10,5,0,0,0},
-{10,10,5,0,0},
-{10,10,10,5,0}
+{20,5,0,0,0},
+{80,30,5,0,0},
+{320,180,75,5,0}
 }
 end
 if(ltype=="fortress") then
 return { 
 {0,0,0,0,1},
 {5,0,0,0,0},
-{10,5,0,0,0},
-{10,10,5,0,0},
-{10,10,10,5,0}
+{20,5,0,0,0},
+{80,30,5,0,0},
+{320,180,75,5,0}
 }
 end
 if(ltype=="tower") then
 return { 
 {0,0,0,0,1},
 {5,0,0,0,0},
-{10,5,0,0,0},
-{10,10,5,0,0},
-{10,10,10,5,0}
+{20,5,0,0,0},
+{80,30,5,0,0},
+{320,180,75,5,0}
 }
 end
 if(ltype=="negotiation_house") then
@@ -287,9 +287,9 @@ end
 return false
 end
 function set_fraction(cat)
-id=math.random(1,31)
+id=math.random(0,30)
 while(has_fraction(id)) do
-id=math.random(1,31)
+id=math.random(0,30)
 
 end
 cat.index_fraction=id
@@ -589,8 +589,8 @@ if(can_active(all_players_in_scene[find_player_by_id(lclient:getConnectId())])==
 ltype=data[1]
 lbuild=data[2]
 lplayer=all_players_in_scene[find_player_by_id(lclient:getConnectId())]
-if(lplayer.resources[6]-(5+math.floor(0.2*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))>=0) then
-all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-(5+math.floor(0.2*#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))
+if(lplayer.resources[6]-(5+math.floor(#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))>=0) then
+all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]=all_players_in_scene[find_player_by_id(lclient:getConnectId())].resources[6]-(5+math.floor(#all_players_in_scene[find_player_by_id(lclient:getConnectId())].my_cats))
 add_cat_in_scene(create_cat(lbuild.x+math.random(0,100),lbuild.y+65,lbuild.uid_player,ltype))
 
 if(ltype=="miner") then
@@ -664,7 +664,7 @@ name=player.name,
 current_animation=player.current_animation,
 priority=1,
 is_mirror=player.is_mirror,
-uid=-1,
+uid=player.uid,
 count_cats=0,
 in_game=player.in_game,
 has_build=player.has_build,

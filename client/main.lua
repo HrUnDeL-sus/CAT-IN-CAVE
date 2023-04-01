@@ -108,7 +108,7 @@ end
 end
 return nil
 end
-function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build,lhas_timofei,lindex_fract)
+function new_player(lx,ly,lname,lanimator,lis_mirror,hhas_build,lhas_timofei,lindex_fract,luid)
 lin_game=true
 if(is_start_game==true) then
 lin_game=false
@@ -122,7 +122,7 @@ animator=lanimator,
 is_mirror=lis_mirror,
 resources={0,0,0,0,10,10},
 priority={80,0,0,0},
-uid=-1,
+uid=luid,
 count_cats_miner=0,
 relationship={},
 in_game=lin_game,
@@ -214,9 +214,8 @@ function add_player_in_players(player)
 
 lplayer=nil
 id=find_id_player_in_players(player)
-
 if(id==-1) then
-	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build,player.has_timofei,player.fraction_id)
+	 lplayer=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),false,player.has_build,player.has_timofei,player.fraction_id,player.uid)
 
 
 table.insert(all_players,lplayer)
@@ -226,8 +225,7 @@ select_current_cat_animation_from_server(all_players[#all_players],player.curren
 
 else
 
-all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build,player.has_timofei,player.fraction_id)
-
+all_players[id]=new_player(player.x,player.y,all_players[id].name,all_players[id].animator,player.is_mirror,player.has_build,player.has_timofei,player.fraction_id,player.uid)
 select_current_cat_animation_from_server(all_players[id],player.current_animation)
 
  if(my_player.name==all_players[id].name) then
@@ -377,10 +375,10 @@ end
 	 end)
 	 	      client:on("get_player", function (player)
 			  if(my_player.animator~=nil) then
-			  my_player=new_player(player.x,player.y,player.name,my_player.animator)
+			  my_player=new_player(player.x,player.y,player.name,my_player.animator,player.is_mirror,player.has_build,player.has_timofei,player.fraction_id,player.uid)
 				select_current_cat_animation_from_server(my_player,player.current_animation)
 			  else
-			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16))
+			  my_player=new_player(player.x,player.y,player.name,new_animator(cat_image,16,16),player.is_mirror,player.has_build,player.has_timofei,player.fraction_id,player.uid)
 			 
 			  init_cat_animator(my_player,"cat")
 			  
@@ -397,8 +395,8 @@ function init_fractions()
 fraction_main=love.graphics.newImage("factions.png")
 	fraction_main:setFilter("linear", "nearest")
 q=0;
-for x=1,16,1 do
 for y=1,3,1 do
+for x=1,16,1 do
 all_fractions_sprites[q]=love.graphics.newQuad(32*(x-1),32*(y-1),32,32,fraction_main)
 q=q+1
 end
@@ -408,7 +406,6 @@ q=q+1
 all_fractions_sprites[q]=love.graphics.newQuad(0,32*2,32,32,fraction_main)
 q=q+1
 all_fractions_sprites[q]=love.graphics.newQuad(32,32*2,32,32,fraction_main)
-
 end
 function load_audio()
 love.audio.setPosition(0, 1, 0)
@@ -638,8 +635,8 @@ end
 for s=1,#all_cost[name][lvl],1 do
 if(all_cost[name][lvl][s]~=0) then
 love.graphics.draw(main_sprite_icon,all_sprites_icons[s],x,y,0,4,4)
+love.graphics.print(all_cost[name][lvl][s],x+20,y)
 
-love.graphics.print(""..all_cost[name][lvl][s],x+20,y)
 x=x+40
 end
 end
@@ -675,10 +672,19 @@ end
 end
 
 end
+function find_fraction(pl_uid)
+for i=1,#all_players,1 do
+
+if(all_players[i].uid==pl_uid) then
+return all_players[i].index_fract
+end
+end
+return -1
+end
 function draw_builds()
 for i=1,#all_builds,1 do
 love.graphics.draw(main_sprite_build,all_sprites_build[all_builds[i].type..all_builds[i].lvl],all_builds[i].x,all_builds[i].y,0,4,4)
-
+draw_fraction(all_builds[i].x,all_builds[i].y,find_fraction(all_builds[i].uid_player))
 draw_hearts(all_builds[i].x,all_builds[i].y,all_builds[i].hp)
 
 end
@@ -753,8 +759,17 @@ end
 end
 end
 function connect_client()
- --client = sock.newClient("88.85.171.249", 22122)
-client = sock.newClient("192.168.0.12", 22122)
+	 	
+	 all_cats={}
+	all_players={}
+	all_builds={}
+	all_msg_in_chat={}
+is_start_game=false
+if(client~=nil) then
+	client:reset()
+	end
+ client = sock.newClient("88.85.171.249", 22122)
+--client = sock.newClient("192.168.0.12", 22122)
 
   init_client_requests()
 
@@ -787,7 +802,7 @@ end
 end
 function draw_home_icons()
 start_x=nearest_build.x-35
-love.graphics.print("COST:" .. (5+math.floor(0.2*my_player.count_cats)),start_x,nearest_build.y-100)
+love.graphics.print("COST:" .. (5+math.floor(my_player.count_cats)),start_x,nearest_build.y-100)
 for i=7,12,1 do
 love.graphics.draw(main_sprite_icon,all_sprites_icons[i],start_x,nearest_build.y-50,0,8,8)
 start_x=start_x+35
@@ -854,7 +869,7 @@ for i=1,#all_shells,1 do
 love.graphics.draw(main_sprite_shell,all_sprites_shells[all_shells[i].type], all_shells[i].x,all_shells[i].y,0,4,4)
 end
 endfunction draw_cats()for i=1,#all_cats,1 do
-
+draw_fraction(all_cats[i].x,all_cats[i].y,find_fraction(all_cats[i].uid_player))
 if(all_cats[i].is_mirror==true) thendraw_animator(all_cats[i].animator,all_cats[i].x,all_cats[i].y,-4,4)
 
 else
@@ -871,12 +886,15 @@ love.graphics.print("Trying to connect to the server",200,0)
 
 end
 function draw_lobby()
+size1=600/bg_lobby_image:getHeight()
+size2=600/bg_lobby_image:getWidth()
 
-love.graphics.draw(bg_lobby_image, 0,0,0,1,1)
+love.graphics.draw(bg_lobby_image, 0,0,0,size1,size2)
 love.graphics.print("Game hasn't started yet" ,200,0)
 love.graphics.print("Count cats in lobby:" .. #all_players,200,30)
 love.graphics.print("Game will start in " .. timer_start_game,200,60)
 love.graphics.print("Index:" .. index_cat_bg,200,90)
+
 end
 function draw_fraction(x,y,id)
 if(id~=-1) then
